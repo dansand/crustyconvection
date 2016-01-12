@@ -1250,8 +1250,9 @@ figTemp + glucifer.objects.Surface(elementMesh, temperatureField)
 #Pack some stuff into a database as well
 figDb = glucifer.Figure()
 figDb + glucifer.objects.Points(gSwarm,viscVariable, logScale=True, colours='brown white blue')
+figDb + glucifer.objects.Points(gSwarm,materialVariable, colours='brown black white blue')
 figDb + glucifer.objects.Mesh(linearMesh)
-figDb + glucifer.objects.VectorArrows(elementMesh,velocityField, arrowHead=0.2, scaling=0.0005)
+figDb + glucifer.objects.VectorArrows(elementMesh,velocityField, arrowHead=0.2, scaling=0.0002)
 figDb + glucifer.objects.Surface(elementMesh, secinvCopy, logScale=True, colours='brown white blue')
                            
 
