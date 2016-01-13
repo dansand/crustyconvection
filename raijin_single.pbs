@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -q express
+#PBS -P m18
+#PBS -l walltime=01:00:00
+#PBS -l mem=16GB
+#PBS -l ncpus=16
+#PBS -l wd
+
+cd ..
+
+module load gcc/4.7.3 pbs dot python/2.7.6
+
+MPI_DIR=/short/m18/jug565/opt/openmpi-1.8.8/
+HDF5_DIR=/short/m18/jug565/opt/hdf5-1.8.16/
+PETSC_DIR=/short/m18/jug565/petsc-3.5.4
+
+
+PATH=MPI_DIR/bin:$PATH
+PYTHONPATH=/home/565/jug565/.local/lib/python2.7/site-packages
+export PYTHONPATH=$PYTHONPATH:/short/m18/jug565/underworld2_clean
+
+/short/m18/jug565/opt/openmpi-1.8.8/bin/mpirun -np 16 python A6.py 1
