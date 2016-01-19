@@ -18,14 +18,19 @@
 # 
 # 
 
-# In[46]:
+# In[236]:
 
 #pwd
 
 
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
-# In[47]:
+# In[237]:
+
+96*3
+
+
+# In[238]:
 
 import underworld as uw
 import math
@@ -44,25 +49,14 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[48]:
+# In[ ]:
 
-############
-#Need to manually set these two
-############
-Model = "T"
-ModNum = 5
 
-if len(sys.argv) == 1:
-    ModIt = "Base"
-elif sys.argv[1] == '-f':
-    ModIt = "Base"
-else:
-    ModIt = str(sys.argv[1])
 
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*). 
 
-# In[49]:
+# In[239]:
 
 #Do you want to write hdf5 files - Temp, RMS, viscosity, stress?
 writeFiles = True
@@ -70,19 +64,19 @@ loadTemp = False
 refineMesh = True
 
 
-# In[50]:
+# In[240]:
 
 ETA_T = 1e5
 
 newvisc= math.exp(math.log(ETA_T)*0.53)
 
 
-# In[51]:
+# In[241]:
 
 newvisc
 
 
-# In[52]:
+# In[242]:
 
 ###########
 #No rheology Constants
@@ -96,12 +90,12 @@ D = 2890.
 
 MINX = -1.
 #Mesh refinement parameter
-ALPHA = 20.
+ALPHA = 11.
 
 stickyAir = True
 
 
-# In[53]:
+# In[243]:
 
 
     
@@ -111,7 +105,7 @@ else:
     squareModel = False
 
 
-# In[54]:
+# In[244]:
 
 ##########
 #variables, these can be defined with STDIN,
@@ -120,20 +114,36 @@ else:
     
 #Watch the type assignemnt on sys.argv[1]
 
-DEFAULT = 64
-ModIt   = str(DEFAULT)
-    
-    
+RES = 128
+DEFAULTDT  = 10000
+#ModIt   = str(DEFAULT)
+
+
+############
+#Need to manually set these two
+############
+Model = "R"
+ModNum = 2
+
 if len(sys.argv) == 1:
-    RES = DEFAULT
+    ModIt = "Base"
 elif sys.argv[1] == '-f':
-    RES = DEFAULT
+    ModIt = "Base"
 else:
-    RES = int(sys.argv[1])
+    ModIt = str(sys.argv[1])
+    DEFAULTDT = int(sys.argv[1])
+    
+    
+#if len(sys.argv) == 1:
+#    RES = DEFAULT
+#elif sys.argv[1] == '-f':
+#    RES = DEFAULT
+#else:
+#    RES = int(sys.argv[1])
     
 
 
-# In[55]:
+# In[245]:
 
 outputPath = "results" + "/" +  str(Model) + "/" + str(ModNum) + "/"
 imagePath = outputPath + 'images/'
@@ -156,7 +166,7 @@ if uw.rank()==0:
         os.makedirs(filePath)
 
 
-# In[56]:
+# In[246]:
 
 dim = 2          # number of spatial dimensions
 
@@ -176,22 +186,22 @@ else:
     
 
 
-# In[57]:
+# In[247]:
 
 MAXY
 
 
-# In[58]:
+# In[248]:
 
 outputPath, checkpointPath
 
 
-# In[59]:
+# In[249]:
 
 Xres, Yres
 
 
-# In[60]:
+# In[250]:
 
 yelsize = MAXY/Yres
 MAXY, yelsize, yelsize*D
@@ -203,7 +213,7 @@ MAXY, yelsize, yelsize*D
 
 # Create mesh objects. These store the indices and spatial coordiates of the grid points on the mesh.
 
-# In[61]:
+# In[251]:
 
 elementMesh = uw.mesh.FeMesh_Cartesian( elementType=("Q1/dQ0"), 
                                          elementRes=(Xres, Yres), 
@@ -215,7 +225,7 @@ constantMesh = elementMesh.subMesh
 
 # Create Finite Element (FE) variables for the velocity, pressure and temperature fields. The last two of these are scalar fields needing only one value at each mesh point, while the velocity field contains a vector of *dim* dimensions at each mesh point.
 
-# In[62]:
+# In[252]:
 
 velocityField    = uw.fevariable.FeVariable( feMesh=linearMesh,   nodeDofCount=dim )
 pressureField    = uw.fevariable.FeVariable( feMesh=constantMesh, nodeDofCount=1 )
@@ -253,9 +263,7 @@ temperatureDotField = uw.fevariable.FeVariable( feMesh=linearMesh,      nodeDofC
 
 
 
-# In[63]:
-
-#THis one for the rectangular mesh
+# In[253]:
 
 if refineMesh:
     alpha = ALPHA
@@ -264,18 +272,18 @@ if refineMesh:
     for index, coord in enumerate(linearMesh.data):
         y0 = coord[1]
         x0 = abs(coord[0])
-        if y0 >= 1.01:
+        if y0 >= 1.0:
             newy = y0
         else:
-            newy = 1.01*(math.log(alpha*y0 + math.e) - 1)*(1/(math.log(alpha + math.e) - 1))
+            newy = (math.log(alpha*y0 + math.e) - 1)*(1/(math.log(alpha + math.e) - 1))
         if coord[0] > 0:
-            newx = (math.e**(x0*(math.log((alpha/2.) + math.e) - 1) + 1 ) - math.e)/(alpha/2.)     
+            newx = (math.e**(x0*(math.log((alpha/2.) + math.e) - 1) + 1 ) - math.e)/(alpha/2.)
         else:
             newx = -1.*(math.e**(x0*(math.log((alpha/2.) + math.e) - 1) + 1 ) - math.e)/(alpha/2.)
         newys.append(newy)
         newxs.append(newx)
         #print y0,newy
-        
+
     with linearMesh.deform_mesh():
             linearMesh.data[:,1] = newys
             linearMesh.data[:,0] = newxs
@@ -283,7 +291,7 @@ if refineMesh:
 
 # #Check if starting from checkpoint
 
-# In[64]:
+# In[254]:
 
 checkdirs = []
 for dirpath, dirnames, files in os.walk(checkpointPath):
@@ -298,7 +306,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
 
 # #ICs and BCs
 
-# In[65]:
+# In[255]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
@@ -340,22 +348,22 @@ for index, coord in enumerate(linearMesh.data):
         temperatureField.data[index] = 0.
 
 
-# In[66]:
+# In[256]:
 
 figTemp = glucifer.Figure()
 figTemp + glucifer.objects.Surface(elementMesh, temperatureField)
 figTemp + glucifer.objects.Mesh(linearMesh)
 figTemp.show()
-#figTemp.save_database('test.gldb')
+figTemp.save_database('test.gldb')
 
 
-# In[67]:
+# In[257]:
 
 #For notebook runs
 #ModIt = "96"
 
 
-# In[68]:
+# In[94]:
 
 ##############
 #a little workaround for change in Load Style
@@ -369,7 +377,7 @@ uw.fevariable._fevariable.FeVariable._oldload = _oldload # monkey patch fevariab
     
 
 
-# In[69]:
+# In[95]:
 
 # Get the actual sets 
 #
@@ -393,7 +401,7 @@ BWalls = linearMesh.specialSets["MinJ_VertexSet"]
 
 
 
-# In[70]:
+# In[96]:
 
 # Now setup the dirichlet boundary condition
 # Note that through this object, we are flagging to the system 
@@ -410,7 +418,7 @@ tempBC = uw.conditions.DirichletCondition(     variable=temperatureField,
 # ##Add Random 125 K temp perturbation
 # 
 
-# In[71]:
+# In[97]:
 
 tempNump = temperatureField.data
 
@@ -425,7 +433,7 @@ if not checkpointLoad:
 
 # ##Reset bottom Dirichlet conds.
 
-# In[72]:
+# In[98]:
 
 # Set temp boundaries 
 # on the boundaries
@@ -435,7 +443,7 @@ for index in linearMesh.specialSets["MaxJ_VertexSet"]:
     temperatureField.data[index] = TS
 
 
-# In[73]:
+# In[99]:
 
 checkdirs
 
@@ -447,7 +455,7 @@ checkdirs
 
 # #Particles
 
-# In[74]:
+# In[100]:
 
 gSwarm = uw.swarm.Swarm( feMesh=elementMesh )
 materialVariable = gSwarm.add_variable( dataType="char", count=1 )
@@ -461,7 +469,7 @@ varnames = ['materialVariable', 'rockIntVar', 'airIntVar', 'lithIntVar']
 
 # #Swarm checkpoint load
 
-# In[75]:
+# In[101]:
 
 mantleIndex = 0
 lithosphereIndex = 1
@@ -485,12 +493,12 @@ dz = 15./D
 avgtemp = 0.5
 
 
-# In[76]:
+# In[102]:
 
 CrustM
 
 
-# In[77]:
+# In[103]:
 
 if checkpointLoad:
     checkpointLoadDir = natsort.natsorted(checkdirs)[-1]
@@ -527,7 +535,7 @@ else:
                  materialVariable.data[particleID] = crustIndex
 
 
-# In[78]:
+# In[104]:
 
 #for particleID in range(gSwarm.particleCoordinates.data.shape[0]):
 #    if (abs(gSwarm.particleCoordinates.data[particleID][0]) < CrustM) and (gSwarm.particleCoordinates.data[particleID][1] < 1.0):
@@ -538,7 +546,7 @@ else:
 
 # #Material Graphs
 
-# In[79]:
+# In[105]:
 
 ##############
 #Important: This is a quick fix for a bug that arises in parallel runs
@@ -546,12 +554,12 @@ else:
 material_list = [0,1,2,3]
 
 
-# In[80]:
+# In[106]:
 
 print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.data[:])))
 
 
-# In[81]:
+# In[107]:
 
 import networkx as nx
 
@@ -597,12 +605,12 @@ DG[0][2]['depthcondition'] = CrustM
 DG[1][2]['depthcondition'] = CrustM
 
 
-# In[82]:
+# In[108]:
 
 DG.nodes()
 
 
-# In[83]:
+# In[109]:
 
 remove_nodes = []
 for node in DG.nodes():
@@ -613,12 +621,12 @@ for rmnode in remove_nodes:
     DG.remove_node(rmnode)
 
 
-# In[84]:
+# In[110]:
 
 DG.nodes()
 
 
-# In[85]:
+# In[111]:
 
 #remove_nodes = []
 #for node in DG.nodes_iter():
@@ -629,7 +637,7 @@ DG.nodes()
 #    DG.remove_node(rmnode)
 
 
-# In[86]:
+# In[112]:
 
 #A Dictionary to map strings in the graph (e.g. 'depthcondition') to particle data arrays
 
@@ -644,7 +652,7 @@ conditionmap['avgtempcondition'] = {}
 conditionmap['avgtempcondition']['data'] = particletemps
 
 
-# In[87]:
+# In[113]:
 
 def update_swarm(graph, particleIndex):
     """
@@ -700,7 +708,7 @@ def update_swarm(graph, particleIndex):
 #                     #number_updated += 1
 #                     materialVariable.data[particleID] = check
 
-# In[88]:
+# In[114]:
 
 #Cleanse the swarm of its sins
 #For some Material Graphs, the graph may have to be treaversed more than once
@@ -717,7 +725,7 @@ while number_updated != 0:
                     materialVariable.data[particleID] = check
 
 
-# In[89]:
+# In[115]:
 
 #figtemp = plt.Figure()
 #tempminmax = fn.view.min_max(temperatureField)
@@ -731,7 +739,7 @@ while number_updated != 0:
 
 # ##Set the values for the masking swarms
 
-# In[90]:
+# In[116]:
 
 #Setup up a masking Swarm variable for the integrations.
 #Two possible problems? 
@@ -755,12 +763,12 @@ lithIntVar.data[islith] = 1.
 # ##Set up a swarm for surface integrations¶
 # 
 
-# In[91]:
+# In[117]:
 
 np.floor(10.*156/64)
 
 
-# In[92]:
+# In[118]:
 
 snum = 1000.
 dx = (linearMesh.data[:,0].max()- linearMesh.data[:,0].min())/snum
@@ -779,7 +787,7 @@ baseintswarm = uw.swarm.Swarm( feMesh=elementMesh )
 dumout = baseintswarm.add_particles_with_coordinates(np.array((xps,yps)).T)
 
 
-# In[93]:
+# In[119]:
 
 # visualise
 #fig1 = plt.Figure()
@@ -801,7 +809,7 @@ dumout = baseintswarm.add_particles_with_coordinates(np.array((xps,yps)).T)
 
 
 
-# In[94]:
+# In[120]:
 
 #Make variables required for plasticity
 
@@ -814,7 +822,7 @@ coordinate = fn.input()
 depth = 1. - coordinate[1]
 
 
-# In[95]:
+# In[121]:
 
 depthField = uw.fevariable.FeVariable( feMesh=linearMesh,   nodeDofCount=1 )
 
@@ -823,7 +831,7 @@ depthField.data[np.where(depthField.data[:] < 0.)[0]] = 0.
 #depthdata = depth.evaluate(linearMesh)
 
 
-# In[96]:
+# In[122]:
 
 #Dimensional parameters
  
@@ -843,14 +851,14 @@ k = 10**(-6)
 fcb = 0.6 #friction coefficient from Byerlees' law
 
 
-# In[97]:
+# In[123]:
 
 #scaling factors
 
 stressscale  = (eta0*k)/(D*1000)**2
 
 
-# In[98]:
+# In[124]:
 
 #Non-dimensional parameters
 
@@ -871,7 +879,7 @@ fcbp = (fcb*rho0*g*(D*1000)**3)/(k*eta0)
 print Ep, Vp, Trp, T0p,rdp, cohesionp,fcbp
 
 
-# In[99]:
+# In[125]:
 
 #Compositional Rayligh number of rock-water 
 
@@ -891,7 +899,7 @@ airviscosity = 0.001
 airdensity = Ra*CompRAfact
 
 
-# In[100]:
+# In[126]:
 
 eta0
 
@@ -901,7 +909,7 @@ eta0
 
 
 
-# In[101]:
+# In[127]:
 
 pressureFieldCopy = uw.fevariable.FeVariable( feMesh=constantMesh, nodeDofCount=1)
 pressureFieldCopy.data[:] = (pressureField.data - pressureField.data.max())*-1.
@@ -916,14 +924,14 @@ lithopressureField.data[lithopressureField.data < 0] = 0
 
 # In the paper, Crameri and Tackley give the dimensionless cohesion as well as the dimensionless yield stress gradient. But the latter is given as a function of dimensionless (lithostatic) pressure, whereas it is easier to use dimensionless depth. Easy, multiply the dimensionless depth by $\rho g D$, divide by the stress scale, $\frac{\eta \kappa}{D^2}$ then use the same dimensionless yeild stress gradient ($\mu$)
 
-# In[102]:
+# In[128]:
 
 secinvCopy = fn.tensor.second_invariant( 
                     fn.tensor.symmetric( 
                         velocityField.gradientFn ))
 
 
-# In[103]:
+# In[129]:
 
 
 
@@ -963,7 +971,7 @@ crustviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, crustplastic))
 
 
 
-# In[104]:
+# In[130]:
 
 lithopressuregrad
 
@@ -973,11 +981,11 @@ lithopressuregrad
 # 
 # Here the functions for density, viscosity etc. are set. These functions and/or values are preserved for the entire simulation time. 
 
-# In[105]:
+# In[131]:
 
 # Here we set a viscosity value of '1.' for both materials
 viscosityMapFn = fn.branching.map( fn_key = materialVariable,
-                         mapping = {airIndex:airviscosity, lithosphereIndex:mantleviscosityFn, crustIndex:crustviscosityFn,mantleIndex:mantleviscosityFn} )
+                         mapping = {airIndex:airviscosity, lithosphereIndex:mantleviscosityFn, crustIndex:mantleviscosityFn,mantleIndex:mantleviscosityFn} )
 
 densityMapFn = fn.branching.map( fn_key = materialVariable,
                          mapping = {airIndex:airdensity, lithosphereIndex:Ra*temperatureField, crustIndex:Ra*temperatureField, mantleIndex:Ra*temperatureField} )
@@ -988,12 +996,17 @@ gravity = ( 0.0, 1.0 )
 buoyancyFn = gravity*densityMapFn
 
 
+# In[132]:
+
+airdensity/Ra
+
+
 # Build the Stokes system, solvers, advection-diffusion
 # ------
 # 
 # Setup linear Stokes system to get the initial velocity.
 
-# In[106]:
+# In[133]:
 
 #We first set up a l
 stokesPIC = uw.systems.Stokes(velocityField=velocityField, 
@@ -1006,7 +1019,7 @@ stokesPIC = uw.systems.Stokes(velocityField=velocityField,
 
 # We do one solve with linear viscosity to get the initial strain rate invariant. This solve step also calculates a 'guess' of the the velocity field based on the linear system, which is used later in the non-linear solver.
 
-# In[107]:
+# In[134]:
 
 if not checkpointLoad:
     #stokesPIC.solve()
@@ -1016,18 +1029,18 @@ if not checkpointLoad:
     solver.options.scr.ksp_rtol=1e-5
     solver.options.scr.use_previous_guess = True
     solver.options.scr.ksp_set_min_it_converge = 6
-    solver.options.mg.levels = 3
+    solver.options.mg.levels = 4
     solver.options.A11.ksp_monitor=''
     solver.solve()
 
 
-# In[108]:
+# In[135]:
 
 #Switch particle escape on, this will also trigger the inflow population control 
 gSwarm.particleEscape = True
 
 
-# In[109]:
+# In[136]:
 
 # Setup the Stokes system again, now with linear or nonlinear visocity viscosity.
 stokesPIC2 = uw.systems.Stokes(velocityField=velocityField, 
@@ -1052,7 +1065,7 @@ stokesPIC2 = uw.systems.Stokes(velocityField=velocityField,
 # solver.options.mg_accel.mg_accelerating_smoothing_view = False
 # solver.options.mg_accel.mg_smooths_to_start = 1
 
-# In[110]:
+# In[137]:
 
 solver = uw.systems.Solver(stokesPIC2) # altered from PIC2
 
@@ -1064,12 +1077,12 @@ solver.options.scr.ksp_rtol=1e-5
 solver.options.scr.use_previous_guess = True
 solver.options.scr.ksp_set_min_it_converge = 6
 
-solver.options.mg.levels = 3
+solver.options.mg.levels = 4
 
 solver.options.A11.ksp_monitor=''
 
 
-# In[111]:
+# In[138]:
 
 uw.help(solver.print_stats)
 
@@ -1077,18 +1090,18 @@ uw.help(solver.print_stats)
 # Solve for initial pressure and velocity using a quick non-linear Picard iteration
 # 
 
-# In[112]:
+# In[140]:
 
 #solver.solve(nonLinearIterate=True)
 
 
-# In[113]:
+# In[141]:
 
 if not checkpointLoad:
     solver.solve(nonLinearIterate=True)
 
 
-# In[114]:
+# In[142]:
 
 solver.options.A11.list()
 solver.options.backsolveA11.list()
@@ -1102,7 +1115,7 @@ solver.options.backsolveA11.list()
 # 
 # Setup the system in underworld by flagging the temperature and velocity field variables.
 
-# In[115]:
+# In[143]:
 
 #Create advdiff system
 advDiff = uw.systems.AdvectionDiffusion( temperatureField, temperatureDotField, velocityField, diffusivity=1., conditions=[tempBC,] )
@@ -1126,7 +1139,7 @@ advector = uw.systems.SwarmAdvector( swarm=gSwarm, velocityField=velocityField, 
 # 
 # $$ \delta = \frac{\lvert \langle W \rangle - \frac{\langle \Phi \rangle}{Ra} \rvert}{max \left(  \langle W \rangle,  \frac{\langle \Phi \rangle}{Ra}\right)} \times 100% $$
 
-# In[116]:
+# In[144]:
 
 #Setup some Integrals. We want these outside the main loop...
 tempVariable = gSwarm.add_variable( dataType="double", count=1 )
@@ -1151,7 +1164,7 @@ vdintair = uw.utils.Integral((4.*mantleviscosityFn*sinner)*airIntVar, linearMesh
 vdintlith = uw.utils.Integral((4.*mantleviscosityFn*sinner)*lithIntVar, linearMesh)
 
 
-# In[117]:
+# In[145]:
 
 def avg_temp():
     return tempint.evaluate()[0]
@@ -1202,7 +1215,7 @@ def visc_extr(viscfn):
     return vuviscfn.max_global(), vuviscfn.min_global()
 
 
-# In[118]:
+# In[146]:
 
 #Fields for saving data / fields
 
@@ -1227,7 +1240,7 @@ viscVariable = gSwarm.add_variable( dataType="float", count=1 )
 viscVariable.data[:] = viscosityMapFn.evaluate(gSwarm)
 
 
-# In[119]:
+# In[147]:
 
 #Images
 figEta = glucifer.Figure()
@@ -1267,12 +1280,12 @@ figDb + glucifer.objects.Surface(elementMesh, secinvCopy, logScale=True, colours
 # The main time stepping loop begins here. Before this the time and timestep are initialised to zero and the output statistics arrays are set up. Also the frequency of outputting basic statistics to the screen is set in steps_output.
 # 
 
-# In[120]:
+# In[316]:
 
 pics = uw.swarm.PICIntegrationSwarm(gSwarm)
 
 
-# In[121]:
+# In[317]:
 
 steps_end = 5
 steps_display_info = 20
@@ -1285,7 +1298,7 @@ checkpoint_every = 25
 metric_output = 1
 
 
-# In[122]:
+# In[318]:
 
 def checkpoint1(step, checkpointPath,filename, filewrites):
     path = checkpointPath + str(step) 
@@ -1318,7 +1331,7 @@ def checkpoint2(step, checkpointPath, swarm, filename, varlist = [materialVariab
     
 
 
-# In[123]:
+# In[319]:
 
 #step = 0
 #f_o = open(outputPath+outputFile, 'w')
@@ -1329,18 +1342,18 @@ def checkpoint2(step, checkpointPath, swarm, filename, varlist = [materialVariab
 #materialVariable.save(os.path.join(path,varnames[0] + ".h5"), swarmfilepath=os.path.join(path, "swarm.h5"))
 
 
-# In[124]:
+# In[320]:
 
 #step = int(checkpointLoadDir.split('/')[-1])
 #step
 
 
-# In[125]:
+# In[321]:
 
 advector.get_max_dt(), advDiff.get_max_dt()
 
 
-# In[126]:
+# In[322]:
 
 # initialise timer for computation
 start = time.clock()
@@ -1362,21 +1375,28 @@ else:
     timevals = [0.]
 
 
-# In[134]:
+# In[182]:
 
-step
+ts = ((D*1e3)**2)/k
+secperyear = (3600*24*365)
+times = [2500., 5000., 10000., 20000., 40000.]
+for t in times:
+    dt = t/(ts/secperyear)
+    print dt
+    
+dtdefault = DEFAULTDT/(ts/secperyear)
 
 
-# In[135]:
+# In[331]:
 
 
 # Perform steps
-while realtime < 0.4:
-#while step < 1:
+while realtime < 3.77581686043e-06: #about 1 my scaled
+#while step < 5:
     #Enter non-linear loop
     print step
     solver.solve(nonLinearIterate=True)
-    dt = advDiff.get_max_dt()
+    dt = dtdefault
     if step == 0:
         dt = 0.
     advDiff.integrate(dt)
@@ -1516,107 +1536,10 @@ f_o.close()
 #checkpoint(step, checkpointPath)
 
 
-# In[128]:
-
-figEta = glucifer.Figure()
-figEta + glucifer.objects.Points(gSwarm,viscVariable, logScale=True, colours='brown white blue')
-#figEta+ glucifer.objects.Mesh(linearMesh)
-figEta.show()
-
-#figEta.save_database('test.gldb')
-
-
-# In[130]:
-
-figMat = glucifer.Figure()
-figMat + glucifer.objects.Points(gSwarm,materialVariable, colours='brown black green blue')
-figMat + glucifer.objects.Mesh(linearMesh)
-figMat.show()
-#figMat.save_database('test.gldb')
-
-
- 
-
-
-# Ra
-
-# In[85]:
-
-pressureField.data.max() - pressureField.data.min()
-
-
-# In[122]:
-
-step
-
-
-# In[136]:
-
-figTemp = glucifer.Figure()
-figTemp + glucifer.objects.Surface(elementMesh, temperatureField)
-figTemp + glucifer.objects.VectorArrows(elementMesh,velocityField, arrowHead=0.2, scaling=0.0002)
-figTemp+ glucifer.objects.Mesh(linearMesh)
-figTemp.show()
-
-
-# In[132]:
-
-figStrainRate = glucifer.Figure()
-figStrainRate + glucifer.objects.Surface(elementMesh, mantleviscosityFn, logScale=True, colours='brown white blue')
-figStrainRate.show()
-
-
-# In[133]:
-
-figStrainRate = glucifer.Figure()
-figStrainRate + glucifer.objects.Surface(elementMesh, secinvCopy, logScale=True, colours='brown white blue')
-figStrainRate.show()
-#figStrainRate.save_database('test.gldb')
-
-
-# In[ ]:
-
-#Psuedo-plastic 
-ys =  1577. + (depth*fc*lithopressuregrad)
-yss = fn.misc.max(1577., ys)
-plasticvisc = yss/(secinvCopy/math.sqrt(0.5))
-plastic = fn.misc.max(1e-4,plasticvisc) #extra factor to account for underworld second invariant form
-
-#combine these
-mantleviscosityFn
-
-
 # In[105]:
 
 machine_time = (time.clock()-start)
 print("total time is: " + str(machine_time))
-
-
-# In[87]:
-
-#print("velocity max on horizontal bounds is: " + str(velocityField[0].evaluate(IWalls).max()))
-
-
-# In[118]:
-
-#Sanity check for periodic conditions
-velocityField.evaluate(TWalls)[:,0].max()
-
-
-# In[119]:
-
-velocityField.evaluate(TWalls).shape
-
-
-# In[82]:
-
-print("TWalls x vel is: " + str(velocityField.evaluate(TWalls)[:,0].max()))
-print("IWalls x vel is: " + str(velocityField.evaluate(IWalls)[:,0].max()))
-
-
-# In[68]:
-
-step
 
 
 # In[ ]:
