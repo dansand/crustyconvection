@@ -1272,7 +1272,7 @@ swarm_repop = 30
 files_output = 100
 gldbs_output = 25
 images_output = 100
-checkpoint_every = 25
+checkpoint_every = 1e6
 metric_output = 1
 
 
