@@ -1294,7 +1294,7 @@ swarm_repop = 30
 files_output = 100
 gldbs_output = 25
 images_output = 100
-checkpoint_every = 25
+checkpoint_every = 1e6
 metric_output = 1
 
 
@@ -1391,7 +1391,7 @@ dtdefault = DEFAULTDT/(ts/secperyear)
 
 
 # Perform steps
-while realtime < 3.29e-06: #about 800 ky scaled#while step < 5:
+while realtime < 3.e-06: #about 800 ky scaled#while step < 5:
     #Enter non-linear loop
     print step
     solver.solve(nonLinearIterate=True)
