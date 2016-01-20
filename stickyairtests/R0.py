@@ -177,8 +177,8 @@ else:
     Xres = 2*RES
 
 if stickyAir:
-    Yres = RES + 16
-    MAXY = float(Yres)/RES
+    Yres = RES
+    MAXY = 1.034
 
 else:
     Yres = RES
