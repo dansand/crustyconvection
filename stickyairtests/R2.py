@@ -1375,6 +1375,8 @@ while realtime < 3.77581686043e-06: #about 1 my scaled
     print step
     solver.solve(nonLinearIterate=True)
     dt = dtdefault
+    dt2 = advector.get_max_dt()
+    dt1 = advDiff.get_max_dt()
     if step == 0:
         dt = 0.
     advDiff.integrate(dt)
@@ -1417,7 +1419,7 @@ while realtime < 3.77581686043e-06: #about 1 my scaled
         comm.Allreduce(Rmsurfloc, Rmsurfglob, op=MPI.SUM)
         # output to summary text file
         if uw.rank()==0:
-            f_o.write((13*'%-15s ' + '\n') % (realtime, Viscdis, float(Nu0glob), float(Nu1glob), Avg_temp,
+            f_o.write((16*'%-15s ' + '\n') % (realtime,dt, dt1, dt2, Viscdis, float(Nu0glob), float(Nu1glob), Avg_temp,
                                               Rms,Rmsurfglob,Max_vx_surf,Gravwork, etamax, etamin, Viscdisair, Viscdislith))
     #if step %  steps_display_info == 0:
     # output image to file
