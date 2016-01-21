@@ -1369,7 +1369,7 @@ dtdefault = DEFAULTDT/(ts/secperyear)
 
 
 # Perform steps
-while realtime < 0.1: #about 800 ky scaled
+while realtime < 1.e-06: 
 #while step < 5:
     #Enter non-linear loop
     print step
