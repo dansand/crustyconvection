@@ -1050,8 +1050,8 @@ solver = uw.systems.Solver(stokesPIC2) # altered from PIC2
 
 
 solver.options.main.Q22_pc_type='uw'
-solver.options.A11.ksp_rtol=1e-6
-solver.options.scr.ksp_rtol=1e-5
+solver.options.A11.ksp_rtol=1e-5
+solver.options.scr.ksp_rtol=1e-4
 solver.options.scr.use_previous_guess = True
 solver.options.scr.ksp_set_min_it_converge = 6
 
@@ -1369,7 +1369,7 @@ dtdefault = DEFAULTDT/(ts/secperyear)
 
 
 # Perform steps
-while realtime < 3.e-06: #about 800 ky scaled
+while realtime < 0.1: #about 800 ky scaled
 #while step < 5:
     #Enter non-linear loop
     print step
