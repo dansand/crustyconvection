@@ -1394,7 +1394,7 @@ dtdefault = DEFAULTDT/(ts/secperyear)
 
 
 # Perform steps
-while realtime < 3.e-06: #about 800 ky scaled#while step < 5:
+while realtime < 1.e-06: #about 800 ky scaled#while step < 5:
     #Enter non-linear loop
     print step
     solver.solve(nonLinearIterate=True)
