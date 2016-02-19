@@ -20,7 +20,7 @@
 
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
-# In[24]:
+# In[1]:
 
 import underworld as uw
 import math
@@ -34,13 +34,14 @@ import sys
 import natsort
 import shutil
 from easydict import EasyDict as edict
+import collections
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[25]:
+# In[2]:
 
 #Display working directory info if in nb mode
 if (len(sys.argv) > 1):
@@ -49,13 +50,13 @@ if (len(sys.argv) > 1):
         
 
 
-# In[26]:
+# In[3]:
 
 ############
 #Model name.  
 ############
-Model = "T"
-ModNum = 9
+Model = "R"
+ModNum = 2
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -67,7 +68,7 @@ else:
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*). 
 
-# In[27]:
+# In[4]:
 
 ###########
 #Standard output directory setup
@@ -97,7 +98,7 @@ if uw.rank()==0:
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
 
-# In[28]:
+# In[5]:
 
 ###########
 #Check if starting from checkpoint
@@ -115,7 +116,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
         
 
 
-# In[7]:
+# In[6]:
 
 ###########
 #Physical parameters
@@ -193,7 +194,7 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[8]:
+# In[7]:
 
 ###########
 #Model setup parameters
@@ -235,11 +236,11 @@ else:
     MAXY = 1.
 
 
-periodic = [True,False]
+periodic = [False,False]
 elementType = "Q1/dQ0"
 #elementType ="Q2/DPC1"
 
-refineMesh = False
+refineMesh = True
 
 s = 1.2 #Mesh refinement parameter
 ALPHA = 11. #Mesh refinement parameter
@@ -249,7 +250,7 @@ ALPHA = 11. #Mesh refinement parameter
 PIC_integration=False
 
 
-# In[9]:
+# In[8]:
 
 ###########
 #Model Runtime parameters
@@ -271,7 +272,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[10]:
+# In[9]:
 
 ###########
 #Model output parameters
@@ -282,7 +283,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[11]:
+# In[10]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres), 
@@ -297,7 +298,7 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[12]:
+# In[11]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim 
 
@@ -325,38 +326,194 @@ Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim
 #         linearMesh.data[:,1] = newys
 #         linearMesh.data[:,0] = newxs
 
+# #THis one for the rectangular mesh
+# 
+# if refineMesh:
+#     alpha = ALPHA
+#     newys = []
+#     newxs = []
+#     for index, coord in enumerate(mesh.data):
+#         y0 = coord[1]
+#         x0 = abs(coord[0])
+#         if y0 == MAXY:
+#             newy = y0
+#         else:
+#             ynorm = y0/MAXY
+#             newy = MAXY*(math.log(alpha*ynorm + math.e) - 1)*(1/(math.log(alpha + math.e) - 1))
+#         if coord[0] > 0:
+#             newx = (math.e**(x0*(math.log((alpha/2.) + math.e) - 1) + 1 ) - math.e)/(alpha/2.)
+#         else:
+#             newx = -1.*(math.e**(x0*(math.log((alpha/2.) + math.e) - 1) + 1 ) - math.e)/(alpha/2.)
+#         newys.append(newy)
+#         newxs.append(newx)
+#         #print y0,newy
+# 
+#     with mesh.deform_mesh():
+#             mesh.data[:,1] = newys
+#             mesh.data[:,0] = newxs
+
+# In[12]:
+
+# Get the actual sets 
+#
+#  HJJJJJJH
+#  I      I
+#  I      I
+#  I      I
+#  HJJJJJJH
+#  
+#  Note that H = I & J 
+
+# Note that we use operator overloading to combine sets
+# send boundary condition information to underworld
+IWalls = mesh.specialSets["MinI_VertexSet"] + mesh.specialSets["MaxI_VertexSet"]
+JWalls = mesh.specialSets["MinJ_VertexSet"] + mesh.specialSets["MaxJ_VertexSet"]
+TWalls = mesh.specialSets["MaxJ_VertexSet"]
+BWalls = mesh.specialSets["MinJ_VertexSet"]
+AWalls = IWalls + JWalls
+
+
 # In[13]:
 
-#THis one for the rectangular mesh
+def coarse_fine_division(mesh, axis="y", refine_by=2., relax_by =0.5):
+    if axis == "y":
+        thisaxis = 1
+    else:
+        thisaxis = 0
+    width = (mesh.maxCoord[thisaxis]-mesh.minCoord[thisaxis])
+    dx = (mesh.maxCoord[thisaxis]-mesh.minCoord[thisaxis])/ (mesh.elementRes[thisaxis])
+    nx = mesh.elementRes[thisaxis]
+    dxf = dx/ refine_by
+    dxc = dx/ relax_by
+    print("refine By:" + str(refine_by))
+    i = 0
+    current_width = ((nx - i)  * dxf) + (i * dxc)
+    while current_width < width:
+        i += 1
+        current_width = ((nx - i)  * dxf) + (i * dxc)
+    #print current_width
+    #correct dxc so the total domain is preserved.
+    dxc = (width  - ((nx - i)  * dxf))/i
+    nxf = (nx - i) 
+    nxc = i
+    nt = (nxf + nxc)
+    assert nt == nx
+    return nxf, dxf, nxc, dxc
 
-if refineMesh:
-    alpha = ALPHA
-    newys = []
-    newxs = []
-    for index, coord in enumerate(mesh.data):
-        y0 = coord[1]
-        x0 = abs(coord[0])
-        if y0 == MAXY:
-            newy = y0
-        else:
-            ynorm = y0/MAXY
-            newy = MAXY*(math.log(alpha*ynorm + math.e) - 1)*(1/(math.log(alpha + math.e) - 1))
-        if coord[0] > 0:
-            newx = (math.e**(x0*(math.log((alpha/2.) + math.e) - 1) + 1 ) - math.e)/(alpha/2.)
-        else:
-            newx = -1.*(math.e**(x0*(math.log((alpha/2.) + math.e) - 1) + 1 ) - math.e)/(alpha/2.)
-        newys.append(newy)
-        newxs.append(newx)
-        #print y0,newy
+nxf, dxf, nxc, dxc = coarse_fine_division(mesh, axis="x", refine_by=2., relax_by =0.5)
 
+def shishkin_centre_arrange(mesh, axis="y",centre = 0.5, nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc):
+    import itertools
+    if axis == "y":
+        thisaxis = 1
+    else:
+        thisaxis = 0
+    print thisaxis
+    ###################
+    #Get the number of coarse elements either side of fine elements
+    ###################
+    nr = nxc
+    nl = 0
+    print((nxf*dxf - abs(mesh.minCoord[thisaxis])))
+    if ((nxf*dxf - abs(mesh.minCoord[thisaxis])) > centre):
+        print("left edge")
+        pass
+    else:
+        left_length = (nl*dxc) + 0.5*(dxf*nxf) - abs(mesh.minCoord[thisaxis])
+        while (left_length <  centre):
+            nl += 1
+            left_length = (nl*dxc) + 0.5*(dxf*nxf) - abs(mesh.minCoord[thisaxis])
+            #print(left_length)
+            if nl == nxc:
+                print("right edge")
+                break
+        nr = nxc - nl
+    print(nl, nr, nxf)
+    #assert nr + nl + nxf == mesh.elementRes[thisaxis]
+    ###################
+    #return dictionary of new element mappings
+    ###################
+    lcoords = [(mesh.minCoord[thisaxis] + i*dxc) for i in range(nl+1)]
+    if lcoords:
+        #print(nl, lcoords[-1]/dxc)
+        ccoords =  [lcoords[-1] + i*dxf for i in range(1, nxf+1)]
+    else:
+        ccoords =  [(mesh.minCoord[thisaxis] + i*dxf) for i in range(0, nxf)]
+    rcoords = [ccoords[-1] + i*dxc for i in range(1, nr +1)]
+    if rcoords:
+        #rcoords.append(mesh.maxCoord[0])
+        pass
+    else:
+        #ccoords.append(mesh.maxCoord[0])
+        pass
+    newcoords = lcoords+ ccoords+ rcoords
+    #assert len(newcoords) == nx + 1 
+    #origcoords = list(np.unique(mesh.data[:,thisaxis]))
+    #origcoords = np.linspace(mesh.minCoord[thisaxis], mesh.maxCoord[thisaxis], mesh.elementRes[thisaxis])
+    width = (mesh.maxCoord[thisaxis]-mesh.minCoord[thisaxis])
+    dx = (mesh.maxCoord[thisaxis]-mesh.minCoord[thisaxis])/ (mesh.elementRes[thisaxis])
+    origcoords = list(np.arange(mesh.minCoord[thisaxis], mesh.maxCoord[thisaxis], dx))
+    origcoords.append(mesh.maxCoord[thisaxis])
+    dictionary = dict(itertools.izip(origcoords, newcoords))
+    assert len([x for x, y in collections.Counter(newcoords).items() if y > 1]) == 0 #checks agains multiple coordinates
+    return dictionary
+
+
+ 
+def shishkin_deform(mesh, centre = 0.5, axis="y", refine_by=2., relax_by =0.5):
+    if axis == "y":
+        thisaxis = 1
+    else:
+        thisaxis = 0
+    nxf, dxf, nxc, dxc, = coarse_fine_division(mesh,axis, refine_by=refine_by, relax_by =relax_by)
+    coorddict = shishkin_centre_arrange(mesh, nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc, axis=axis , centre=centre)
     with mesh.deform_mesh():
-            mesh.data[:,1] = newys
-            mesh.data[:,0] = newxs
+        for index, coord in enumerate(mesh.data):
+            key = mesh.data[index][thisaxis]
+            mesh.data[index][thisaxis] = coorddict[key]
+
+
+# mesh.reset()
+# nxf, dxf, nxc, dxc, = coarse_fine_division(mesh,axis="x", refine_by=2., relax_by =0.75)
+# xcoorddict = shishkin_centre_arrange(mesh, axis="x", centre=0., nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc)
+# 
+# nxf, dxf, nxc, dxc, = coarse_fine_division(mesh,axis="y", refine_by=2., relax_by =0.5)
+# ycoorddict = shishkin_centre_arrange(mesh, axis="y", centre=0., nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc)
+#             
+# 
+# newxs = []
+# newys = []
+# for index, coord in enumerate(mesh.data):
+#     x0 = coord[0]
+#     y0 = coord[1]
+#     xkey = mesh.data[index][0]
+#     ykey = mesh.data[index][1]
+#     newx = xcoorddict[key]
+#     newy = ycoorddict[key]
+#     newxs.append(newx)
+# 
+# with mesh.deform_mesh():
+#     mesh.data[:,0] = newxs
+#     mesh.data[:,0] = newxs
+
+# In[14]:
+
+shishkin_deform(mesh, centre = 0.9, axis="y", refine_by=2.0, relax_by =0.5)
+shishkin_deform(mesh, centre = 0.0, axis="x", refine_by=2.0, relax_by =0.75)
+
+
+# In[15]:
+
+figSwarm = glucifer.Figure(figsize=(1024,384))
+#figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
+figSwarm.append( glucifer.objects.Mesh(mesh))
+figSwarm.save_database('test.gldb')
+figSwarm.show()
 
 
 # #ICs and BCs
 
-# In[14]:
+# In[210]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
@@ -379,7 +536,7 @@ def tempf(z,w,t0=0.64):
 
 
 
-# In[15]:
+# In[211]:
 
 for index, coord in enumerate(mesh.data):
     w = wbl(coord[0])
@@ -403,45 +560,20 @@ for index, coord in enumerate(mesh.data):
         temperatureField.data[index] = 0.
 
 
-# In[16]:
+# In[212]:
 
 #For notebook runs
 #ModIt = "96"
 
 
-# In[17]:
-
-# Get the actual sets 
-#
-#  HJJJJJJH
-#  I      I
-#  I      I
-#  I      I
-#  HJJJJJJH
-#  
-#  Note that H = I & J 
-
-# Note that we use operator overloading to combine sets
-# send boundary condition information to underworld
-IWalls = mesh.specialSets["MinI_VertexSet"] + mesh.specialSets["MaxI_VertexSet"]
-JWalls = mesh.specialSets["MinJ_VertexSet"] + mesh.specialSets["MaxJ_VertexSet"]
-TWalls = mesh.specialSets["MaxJ_VertexSet"]
-BWalls = mesh.specialSets["MinJ_VertexSet"]
-
-
-# In[ ]:
-
-
-
-
-# In[18]:
+# In[213]:
 
 # Now setup the dirichlet boundary condition
 # Note that through this object, we are flagging to the system 
 # that these nodes are to be considered as boundary conditions. 
 # Also note that we provide a tuple of sets.. One for the Vx, one for Vy.
 freeslipBC = uw.conditions.DirichletCondition( variable      = velocityField, 
-                                               indexSetsPerDof = (None, JWalls) )
+                                               indexSetsPerDof = (IWalls, JWalls) )
 
 # also set dirichlet for temp field
 tempBC = uw.conditions.DirichletCondition(     variable=temperatureField, 
@@ -459,7 +591,7 @@ pressureField.data[:] = 0.
 # ##Add Random 125 K temp perturbation
 # 
 
-# In[19]:
+# In[214]:
 
 tempNump = temperatureField.data
 
@@ -474,7 +606,7 @@ if not checkpointLoad:
 
 # ##Reset bottom Dirichlet conds.
 
-# In[20]:
+# In[215]:
 
 # Set temp boundaries 
 # on the boundaries
@@ -484,14 +616,14 @@ for index in mesh.specialSets["MaxJ_VertexSet"]:
     temperatureField.data[index] = ndp.TS
 
 
-# In[21]:
+# In[216]:
 
 #temperatureField.evaluate(IWalls).min()
 
 
 # #Particles
 
-# In[22]:
+# In[217]:
 
 ###########
 #Material Swarm and variables
@@ -507,7 +639,7 @@ varlist = [materialVariable, rockIntVar, airIntVar, lithIntVar]
 varnames = ['materialVariable', 'rockIntVar', 'airIntVar', 'lithIntVar']
 
 
-# In[22]:
+# In[218]:
 
 ###########
 #Swarms for surface intragrals when using Sticky air
@@ -532,7 +664,7 @@ dumout = baseintswarm.add_particles_with_coordinates(np.array((xps,yps)).T)
 
 # #Initialise swarm variables, or Swarm checkpoint load
 
-# In[23]:
+# In[219]:
 
 mantleIndex = 0
 lithosphereIndex = 1
@@ -577,7 +709,7 @@ else:
 
 # #Material Graphs
 
-# In[24]:
+# In[220]:
 
 ##############
 #Important: This is a quick fix for a bug that arises in parallel runs
@@ -585,12 +717,12 @@ else:
 material_list = [0,1,2,3]
 
 
-# In[25]:
+# In[221]:
 
 print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.data[:])))
 
 
-# In[67]:
+# In[222]:
 
 import networkx as nx
 
@@ -640,12 +772,12 @@ DG[0][2]['depthcondition'] = MANTLETOCRUST
 DG[1][2]['depthcondition'] = MANTLETOCRUST
 
 
-# In[68]:
+# In[223]:
 
 DG.nodes()
 
 
-# In[69]:
+# In[224]:
 
 remove_nodes = []
 for node in DG.nodes():
@@ -656,12 +788,12 @@ for rmnode in remove_nodes:
     DG.remove_node(rmnode)
 
 
-# In[70]:
+# In[225]:
 
 DG.nodes()
 
 
-# In[71]:
+# In[226]:
 
 
 #remove_nodes = []
@@ -673,7 +805,7 @@ DG.nodes()
 #    DG.remove_node(rmnode)
 
 
-# In[72]:
+# In[227]:
 
 #A Dictionary to map strings in the graph (e.g. 'depthcondition') to particle data arrays
 
@@ -688,7 +820,7 @@ conditionmap['avgtempcondition'] = {}
 conditionmap['avgtempcondition']['data'] = particletemps
 
 
-# In[73]:
+# In[228]:
 
 def update_swarm(graph, particleIndex):
     """
@@ -737,7 +869,7 @@ def update_swarm(graph, particleIndex):
         return innerchange
 
 
-# In[74]:
+# In[229]:
 
 #Cleanse the swarm of its sins
 #For some Material Graphs, the graph may have to be treaversed more than once
@@ -756,7 +888,7 @@ while number_updated != 0:
 
 # ##Set the values for the masking swarms
 
-# In[75]:
+# In[230]:
 
 #Setup up a masking Swarm variable for the integrations.
 #These should be rebuilt at same frequency as the metric calcualtions
@@ -779,7 +911,7 @@ lithIntVar.data[islith] = 1.
 
 # In the paper, Crameri and Tackley give the dimensionless cohesion as well as the dimensionless yield stress gradient. But the latter is given as a function of dimensionless (lithostatic) pressure, whereas it is easier to use dimensionless depth. Easy, multiply the dimensionless depth by $\rho g D$, divide by the stress scale, $\frac{\eta \kappa}{D^2}$ then use the same dimensionless yeild stress gradient ($\mu$)
 
-# In[76]:
+# In[231]:
 
 # The yeilding of the upper slab is dependent on the strain rate.
 strainRate_2ndInvariant = fn.tensor.second_invariant( 
@@ -795,13 +927,13 @@ depth = 1. - coordinate[1]
 lithopressuregrad = dp.rho*dp.g*(dp.LS)**3/(dp.eta0*dp.k)
 
 
-# In[81]:
+# In[232]:
 
 #Check important paramters
 print(ndp.E, ndp.V,ndp.TS,ndp.RD, ndp.TR, ndp.cohesion)
 
 
-# In[78]:
+# In[233]:
 
 ############
 #Mantle
@@ -825,7 +957,7 @@ mantleviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, plastic))
 ############
 
 
-cohesion_reduce =7.
+cohesion_reduce =5.
 ysc = (ndp.cohesion/cohesion_reduce) + (depth*(ndp.fc/100.)*lithopressuregrad)
 #ysc = ys/100.
 ycs = fn.misc.max((ndp.cohesion/cohesion_reduce), ysc)
@@ -848,7 +980,7 @@ crustviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, crustplastic))
 # 
 # Here the functions for density, viscosity etc. are set. These functions and/or values are preserved for the entire simulation time. 
 
-# In[38]:
+# In[234]:
 
 # Here we set a viscosity value of '1.' for both materials
 viscosityMapFn = fn.branching.map( fn_key = materialVariable,
@@ -879,7 +1011,7 @@ buoyancyFn = gravity*densityMapFn
 # 
 # Setup linear Stokes system to get the initial velocity.
 
-# In[ ]:
+# In[235]:
 
 stokesPIC = uw.systems.Stokes( velocityField = velocityField, 
                                pressureField = pressureField,
@@ -889,7 +1021,7 @@ stokesPIC = uw.systems.Stokes( velocityField = velocityField,
                                fn_bodyforce   = buoyancyFn )
 
 
-# In[ ]:
+# In[236]:
 
 #We do one solve with linear viscosity to get the initial strain rate invariant. 
 #This solve step also calculates a 'guess' of the the velocity field based on the linear system, 
@@ -906,7 +1038,7 @@ if not checkpointLoad:
 
 
 
-# In[ ]:
+# In[237]:
 
 ####################
 #Add the non-linear viscosity to the Stokes system
@@ -925,15 +1057,20 @@ solver.options.mg.levels = 3
 solver.options.A11.ksp_monitor=''
 
 
+# In[2]:
+
+#solver.options.scr.ksp_set_min_it_converge
+
+
 # Solve non-linear system for pressure and velocity using Picard iteration
 # 
 
-# In[ ]:
+# In[238]:
 
 solver.solve(nonLinearIterate=True)
 
 
-# In[ ]:
+# In[239]:
 
 #Now check the stress.
 fn_stress = 2.*mantleviscosityFn*uw.function.tensor.symmetric(velocityField.fn_gradient)
@@ -941,17 +1078,17 @@ fn_minmax_inv = fn.view.min_max(fn.tensor.second_invariant(fn_stress))
 ignore = fn_minmax_inv.evaluate(gSwarm)
 
 
-# In[ ]:
+# In[240]:
 
 fn_minmax_inv.max_global()
 
 
-# In[ ]:
+# In[241]:
 
 #np.isclose(fn_minmax_inv.max_global(), ys, rtol=1e-03)
 
 
-# In[ ]:
+# In[242]:
 
 figTemp = glucifer.Figure()
 figTemp.append( glucifer.objects.Surface(mesh, fn.tensor.second_invariant(fn_stress)))
@@ -965,7 +1102,7 @@ figTemp.show()
 # 
 # Setup the system in underworld by flagging the temperature and velocity field variables.
 
-# In[118]:
+# In[243]:
 
 #Create advdiff system
 
@@ -1001,7 +1138,7 @@ gSwarm.particleEscape = True
 # 
 # $$ \delta = \frac{\lvert \langle W \rangle - \frac{\langle \Phi \rangle}{Ra} \rvert}{max \left(  \langle W \rangle,  \frac{\langle \Phi \rangle}{Ra}\right)} \times 100% $$
 
-# In[119]:
+# In[244]:
 
 #Setup some Integrals. We want these outside the main loop...
 tempVariable = gSwarm.add_variable( dataType="double", count=1 )
@@ -1023,7 +1160,7 @@ vdintair = uw.utils.Integral((4.*mantleviscosityFn*sinner)*airIntVar, mesh)
 vdintlith = uw.utils.Integral((4.*mantleviscosityFn*sinner)*lithIntVar, mesh)
 
 
-# In[120]:
+# In[245]:
 
 def avg_temp():
     return tempint.evaluate()[0]
@@ -1074,7 +1211,7 @@ def visc_extr(viscfn):
     return vuviscfn.max_global(), vuviscfn.min_global()
 
 
-# In[121]:
+# In[246]:
 
 #Fields for saving data / fields
 
@@ -1099,7 +1236,7 @@ viscVariable = gSwarm.add_variable( dataType="float", count=1 )
 viscVariable.data[:] = viscosityMapFn.evaluate(gSwarm)
 
 
-# In[122]:
+# In[247]:
 
 #Images
 figEta = glucifer.Figure()
@@ -1138,12 +1275,12 @@ figDb.append( glucifer.objects.Surface(mesh, strainRate_2ndInvariant, logScale=T
 # The main time stepping loop begins here. Before this the time and timestep are initialised to zero and the output statistics arrays are set up. Also the frequency of outputting basic statistics to the screen is set in steps_output.
 # 
 
-# In[123]:
+# In[248]:
 
 pics = uw.swarm.PICIntegrationSwarm(gSwarm)
 
 
-# In[125]:
+# In[249]:
 
 def checkpoint1(step, checkpointPath,filename, filewrites):
     path = checkpointPath + str(step) 
@@ -1171,12 +1308,12 @@ def checkpoint2(step, checkpointPath, swarm, filename, varlist = [materialVariab
     
 
 
-# In[126]:
+# In[250]:
 
 advector.get_max_dt(), advDiff.get_max_dt()
 
 
-# In[129]:
+# In[ ]:
 
 # initialise timer for computation
 start = time.clock()
@@ -1329,22 +1466,25 @@ f_o.close()
 #print 'step =',step, '; dt =', dt, '; CPU time =', time.clock()-startMain
 
 
-# In[78]:
+# In[ ]:
 
 viscVariable = gSwarm.add_variable( dataType="float", count=1 )
 viscVariable.data[:] = viscosityMapFn.evaluate(gSwarm)
 figEta = glucifer.Figure(figsize=(1024,384))
 figEta.append( glucifer.objects.Points(gSwarm,viscVariable, logScale=True))
+figEta.append( glucifer.objects.Mesh(mesh))
 figEta.show()
 figEta.save_database('test.gldb')
 
 
-# In[23]:
+# In[144]:
 
 figTemp = glucifer.Figure()
 figTemp.append( glucifer.objects.Surface(mesh, temperatureField))
-figTemp.append( glucifer.objects.VectorArrows(mesh,velocityField, arrowHead=0.2, scaling=0.005))
+figTemp.append( glucifer.objects.Mesh(mesh))
 
+figTemp.append( glucifer.objects.VectorArrows(mesh,velocityField, arrowHead=0.2, scaling=0.005))
+figTemp.save_database('test.gldb')
 figTemp.show()
 
 
@@ -1362,7 +1502,7 @@ figVelocityMag.append( glucifer.objects.Surface(mesh, pressureField, logScale=Tr
 figVelocityMag.show()
 
 
-# In[79]:
+# In[147]:
 
 figSwarm = glucifer.Figure(figsize=(1024,384))
 figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
