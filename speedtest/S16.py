@@ -22,6 +22,7 @@
 
 # In[1]:
 
+import networkx as nx
 import underworld as uw
 import math
 from underworld import function as fn
@@ -719,7 +720,7 @@ print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.
 
 # In[28]:
 
-import networkx as nx
+
 
 #All depth conditions are given as (km/D) where D is the length scale,
 #note that 'model depths' are used, e.g. 1-z, where z is the vertical Underworld coordinate
