@@ -504,13 +504,6 @@ if refineMesh:
     shishkin_deform(mesh, centre = 0.0, axis="x", refine_by=2.0, relax_by =0.75)
 
 
-# In[15]:
-
-figSwarm = glucifer.Figure(figsize=(1024,384))
-#figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
-figSwarm.append( glucifer.objects.Mesh(mesh))
-figSwarm.save_database('test.gldb')
-figSwarm.show()
 
 
 # #ICs and BCs
@@ -1093,15 +1086,6 @@ fn_minmax_inv.max_global()
 # In[241]:
 
 #np.isclose(fn_minmax_inv.max_global(), ys, rtol=1e-03)
-
-
-# In[242]:
-
-figTemp = glucifer.Figure()
-figTemp.append( glucifer.objects.Surface(mesh, fn.tensor.second_invariant(fn_stress)))
-#figTemp.append( glucifer.objects.VectorArrows(mesh,velocityField, arrowHead=0.2, scaling=0.0005))
-
-figTemp.show()
 
 
 # Create an advective-diffusive system
