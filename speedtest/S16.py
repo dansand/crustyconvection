@@ -21,7 +21,6 @@
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
 # In[1]:
-
 import networkx as nx
 import underworld as uw
 import math
