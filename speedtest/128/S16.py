@@ -21,7 +21,7 @@
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
 # In[1]:
-
+import networkx as nx
 import underworld as uw
 import math
 from underworld import function as fn
@@ -56,7 +56,7 @@ if (len(sys.argv) > 1):
 #Model name.
 ############
 Model = "S"
-ModNum = 64
+ModNum = 16
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -504,13 +504,6 @@ if refineMesh:
     shishkin_deform(mesh, centre = 0.0, axis="x", refine_by=2.0, relax_by =0.75)
 
 
-# In[15]:
-
-figSwarm = glucifer.Figure(figsize=(1024,384))
-#figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
-figSwarm.append( glucifer.objects.Mesh(mesh))
-figSwarm.save_database('test.gldb')
-figSwarm.show()
 
 
 # #ICs and BCs
@@ -726,7 +719,7 @@ print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.
 
 # In[28]:
 
-import networkx as nx
+
 
 #All depth conditions are given as (km/D) where D is the length scale,
 #note that 'model depths' are used, e.g. 1-z, where z is the vertical Underworld coordinate
@@ -1054,11 +1047,11 @@ stokesPIC.fn_viscosity = viscosityMapFn
 solver.options.main.Q22_pc_type='uw'
 solver.options.A11.ksp_rtol=1e-5
 solver.options.scr.ksp_rtol=1e-5
-solver.options.A11.ksp_type="cg"
+#solver.options.A11.ksp_type="cg"
 solver.options.scr.use_previous_guess = True
 solver.options.scr.ksp_set_min_it_converge = 1
 
-#solver.options.mg.levels = 3
+solver.options.mg.levels = 3
 
 #solver.options.A11.ksp_monitor=''
 solver.options.A11.ksp_converged_reason=''
@@ -1093,15 +1086,6 @@ fn_minmax_inv.max_global()
 # In[241]:
 
 #np.isclose(fn_minmax_inv.max_global(), ys, rtol=1e-03)
-
-
-# In[242]:
-
-figTemp = glucifer.Figure()
-figTemp.append( glucifer.objects.Surface(mesh, fn.tensor.second_invariant(fn_stress)))
-#figTemp.append( glucifer.objects.VectorArrows(mesh,velocityField, arrowHead=0.2, scaling=0.0005))
-
-figTemp.show()
 
 
 # Create an advective-diffusive system

@@ -56,7 +56,7 @@ if (len(sys.argv) > 1):
 #Model name.
 ############
 Model = "S"
-ModNum = 16
+ModNum = 8
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -1045,13 +1045,13 @@ stokesPIC.fn_viscosity = viscosityMapFn
 
 #Set more advanced solver option
 solver.options.main.Q22_pc_type='uw'
-solver.options.A11.ksp_rtol=1e-7
-solver.options.scr.ksp_rtol=1e-6
+solver.options.A11.ksp_rtol=1e-5
+solver.options.scr.ksp_rtol=1e-5
 #solver.options.A11.ksp_type="cg"
 solver.options.scr.use_previous_guess = True
-solver.options.scr.ksp_set_min_it_converge = 6
+solver.options.scr.ksp_set_min_it_converge = 1
 
-#solver.options.mg.levels = 3
+solver.options.mg.levels = 3
 
 #solver.options.A11.ksp_monitor=''
 solver.options.A11.ksp_converged_reason=''
