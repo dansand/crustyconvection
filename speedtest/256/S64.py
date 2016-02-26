@@ -221,7 +221,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 128
+RES = 256
 
 if MINX == 0.:
     Xres = RES

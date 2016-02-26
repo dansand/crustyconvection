@@ -22,6 +22,7 @@
 
 # In[1]:
 
+import networkx as nx
 import underworld as uw
 import math
 from underworld import function as fn
@@ -55,8 +56,8 @@ if (len(sys.argv) > 1):
 ############
 #Model name.  
 ############
-Model = "R"
-ModNum = 4
+Model = "A"
+ModNum = 0
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -152,16 +153,15 @@ ndp = edict({'RA':1e6,
               'LS':1.,
               'eta0':1.,
               'k':1.,
-              #'fc':0.1,
-              'fc':0.07,
               'E':11.55,
               'V':3.0,
               'H':20.,
               'TR':(1600./2500.),
               'TS':(dp.TS/2500.),
               'RD':1.,
-              'cohesion':1577.})
-              #'cohesion':5*1577.})
+              'cohesion':1577.,
+              'cohesion_reduce':5.,
+              'fc':0.1})
 
 
 #A few parameters defining lengths scales, affects materal transistions etc.
@@ -221,7 +221,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 192
+RES = 128
 
 if MINX == 0.:
     Xres = RES
@@ -241,7 +241,7 @@ periodic = [True,False]
 elementType = "Q1/dQ0"
 #elementType ="Q2/DPC1"
 
-refineMesh = False
+refineMesh = True
 
 s = 1.2 #Mesh refinement parameter
 ALPHA = 11. #Mesh refinement parameter
@@ -500,8 +500,8 @@ def shishkin_deform(mesh, centre = 0.5, axis="y", refine_by=2., relax_by =0.5):
 # In[14]:
 
 if refineMesh:
-    shishkin_deform(mesh, centre = 0.9, axis="y", refine_by=1.5, relax_by =0.5)
-    shishkin_deform(mesh, centre = 0.0, axis="x", refine_by=1.5, relax_by =0.75)
+    shishkin_deform(mesh, centre = 0.9, axis="y", refine_by=2.0, relax_by =0.5)
+    shishkin_deform(mesh, centre = 0.0, axis="x", refine_by=2.0, relax_by =0.75)
 
 
 # In[15]:
@@ -726,7 +726,7 @@ print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.
 
 # In[28]:
 
-import networkx as nx
+
 
 #All depth conditions are given as (km/D) where D is the length scale, 
 #note that 'model depths' are used, e.g. 1-z, where z is the vertical Underworld coordinate
@@ -959,10 +959,10 @@ mantleviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, plastic))
 ############
 
 
-cohesion_reduce =5.
-ysc = (ndp.cohesion/cohesion_reduce) + (depth*(ndp.fc/100.)*lithopressuregrad)
+
+ysc = (ndp.cohesion/ndp.cohesion_reduce) + (depth*(ndp.fc/100.)*lithopressuregrad)
 #ysc = ys/100.
-ycs = fn.misc.max((ndp.cohesion/cohesion_reduce), ysc)
+ycs = fn.misc.max((ndp.cohesion/ndp.cohesion_reduce), ysc)
 crustplasticvisc = ycs*(math.sqrt(2))/(strainRate_2ndInvariant*2.)
 crustplastic = fn.misc.max(1e-4,crustplasticvisc) 
 crustviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, crustplastic))
@@ -1054,11 +1054,11 @@ stokesPIC.fn_viscosity = viscosityMapFn
 solver.options.main.Q22_pc_type='uw'
 solver.options.A11.ksp_rtol=1e-5
 solver.options.scr.ksp_rtol=1e-5
-solver.options.A11.ksp_type="cg"
+#solver.options.A11.ksp_type="cg"
 solver.options.scr.use_previous_guess = True
 solver.options.scr.ksp_set_min_it_converge = 1
 
-#solver.options.mg.levels = 3
+solver.options.mg.levels = 3
 
 #solver.options.A11.ksp_monitor=''
 solver.options.A11.ksp_converged_reason=''

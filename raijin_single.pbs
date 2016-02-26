@@ -2,8 +2,8 @@
 #PBS -q express
 #PBS -P m18
 #PBS -l walltime=01:00:00
-#PBS -l mem=16GB
-#PBS -l ncpus=16
+#PBS -l mem=32GB
+#PBS -l ncpus=32
 #PBS -l wd
 
 
@@ -16,4 +16,4 @@ module load hdf5/1.8.10p
 export PYTHONPATH=$PYTHONPATH:$HOME/six-1.10.0
 export PYTHONPATH=$PYTHONPATH:$HOME/underworld2
 
-mpirun -np 16 python S16.py
+mpirun -np 32 python base_model.py
