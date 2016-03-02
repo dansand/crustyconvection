@@ -56,8 +56,8 @@ if (len(sys.argv) > 1):
 ############
 #Model name.  
 ############
-Model = "A"
-ModNum = 0
+Model = "T"
+ModNum = 10
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -221,7 +221,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 128
+RES = 64
 
 if MINX == 0.:
     Xres = RES
@@ -504,18 +504,14 @@ if refineMesh:
     shishkin_deform(mesh, centre = 0.0, axis="x", refine_by=2.0, relax_by =0.75)
 
 
-# In[15]:
+# In[ ]:
 
-figSwarm = glucifer.Figure(figsize=(1024,384))
-#figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
-figSwarm.append( glucifer.objects.Mesh(mesh))
-figSwarm.save_database('test.gldb')
-figSwarm.show()
+
 
 
 # #ICs and BCs
 
-# In[16]:
+# In[15]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
@@ -538,7 +534,7 @@ def tempf(z,w,t0=0.64):
 
 
 
-# In[17]:
+# In[16]:
 
 for index, coord in enumerate(mesh.data):
     w = wbl(coord[0])
@@ -562,13 +558,13 @@ for index, coord in enumerate(mesh.data):
         temperatureField.data[index] = 0.
 
 
-# In[18]:
+# In[17]:
 
 #For notebook runs
 #ModIt = "96"
 
 
-# In[19]:
+# In[18]:
 
 # Now setup the dirichlet boundary condition
 # Note that through this object, we are flagging to the system 
@@ -593,7 +589,7 @@ pressureField.data[:] = 0.
 # ##Add Random 125 K temp perturbation
 # 
 
-# In[20]:
+# In[19]:
 
 tempNump = temperatureField.data
 
@@ -608,7 +604,7 @@ if not checkpointLoad:
 
 # ##Reset bottom Dirichlet conds.
 
-# In[21]:
+# In[20]:
 
 # Set temp boundaries 
 # on the boundaries
@@ -618,14 +614,14 @@ for index in mesh.specialSets["MaxJ_VertexSet"]:
     temperatureField.data[index] = ndp.TS
 
 
-# In[22]:
+# In[21]:
 
 #temperatureField.evaluate(IWalls).min()
 
 
 # #Particles
 
-# In[23]:
+# In[22]:
 
 ###########
 #Material Swarm and variables
@@ -641,7 +637,7 @@ varlist = [materialVariable, rockIntVar, airIntVar, lithIntVar]
 varnames = ['materialVariable', 'rockIntVar', 'airIntVar', 'lithIntVar']
 
 
-# In[24]:
+# In[23]:
 
 ###########
 #Swarms for surface intragrals when using Sticky air
@@ -666,7 +662,7 @@ dumout = baseintswarm.add_particles_with_coordinates(np.array((xps,yps)).T)
 
 # #Initialise swarm variables, or Swarm checkpoint load
 
-# In[25]:
+# In[24]:
 
 mantleIndex = 0
 lithosphereIndex = 1
@@ -711,7 +707,7 @@ else:
 
 # #Material Graphs
 
-# In[26]:
+# In[25]:
 
 ##############
 #Important: This is a quick fix for a bug that arises in parallel runs
@@ -719,12 +715,12 @@ else:
 material_list = [0,1,2,3]
 
 
-# In[27]:
+# In[26]:
 
 print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.data[:])))
 
 
-# In[28]:
+# In[27]:
 
 
 
@@ -774,12 +770,12 @@ DG[0][2]['depthcondition'] = MANTLETOCRUST
 DG[1][2]['depthcondition'] = MANTLETOCRUST
 
 
-# In[29]:
+# In[28]:
 
 DG.nodes()
 
 
-# In[30]:
+# In[29]:
 
 remove_nodes = []
 for node in DG.nodes():
@@ -790,12 +786,12 @@ for rmnode in remove_nodes:
     DG.remove_node(rmnode)
 
 
-# In[31]:
+# In[30]:
 
 DG.nodes()
 
 
-# In[32]:
+# In[31]:
 
 
 #remove_nodes = []
@@ -807,7 +803,7 @@ DG.nodes()
 #    DG.remove_node(rmnode)
 
 
-# In[33]:
+# In[32]:
 
 #A Dictionary to map strings in the graph (e.g. 'depthcondition') to particle data arrays
 
@@ -822,7 +818,7 @@ conditionmap['avgtempcondition'] = {}
 conditionmap['avgtempcondition']['data'] = particletemps
 
 
-# In[34]:
+# In[33]:
 
 def update_swarm(graph, particleIndex):
     """
@@ -871,6 +867,11 @@ def update_swarm(graph, particleIndex):
         return innerchange
 
 
+# In[34]:
+
+#fn.branching.conditional?
+
+
 # In[35]:
 
 #Cleanse the swarm of its sins
@@ -888,9 +889,38 @@ while number_updated != 0:
                     materialVariable.data[particleID] = check
 
 
+# In[53]:
+
+## Here we'll play around with some different crust-perturbations
+##Voul inlude this is the Graph update function, but for now keep it seperate
+
+#MANTLETOCRUST
+centre = 0.0
+#CRUSTTOMANTLE
+
+pert_shape = np.array([ (MANTLETOCRUST ,1. ), ((-1.*MANTLETOCRUST) ,(1.0 - CRUSTTOMANTLE) ), 
+                       (-1.*MANTLETOCRUST ,1. ), ((MANTLETOCRUST),(1.0 - CRUSTTOMANTLE ))])
+
+pert_shape = fn.shape.Polygon( pert_shape)
+
+for particleID in range( gSwarm.particleCoordinates.data.shape[0] ):
+    if pert_shape.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
+        #print "true"
+        materialVariable.data[particleID] = crustIndex
+
+
+# In[52]:
+
+figSwarm = glucifer.Figure(figsize=(1024,384))
+figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
+figSwarm.append( glucifer.objects.Mesh(mesh))
+#figSwarm.save_database('test.gldb')
+figSwarm.show()
+
+
 # ##Set the values for the masking swarms
 
-# In[36]:
+# In[39]:
 
 #Setup up a masking Swarm variable for the integrations.
 #These should be rebuilt at same frequency as the metric calcualtions
@@ -1509,7 +1539,7 @@ figVelocityMag.append( glucifer.objects.Surface(mesh, pressureField, logScale=Tr
 figVelocityMag.show()
 
 
-# In[147]:
+# In[42]:
 
 figSwarm = glucifer.Figure(figsize=(1024,384))
 figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
