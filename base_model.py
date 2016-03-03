@@ -57,7 +57,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 10
+ModNum = 11
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -221,7 +221,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 64
+RES = 128
 
 if MINX == 0.:
     Xres = RES
@@ -552,7 +552,6 @@ for index, coord in enumerate(mesh.data):
         
 
 #Set sticky air Temp to zero
-
 for index, coord in enumerate(mesh.data):
     if coord[1] > 1.:
         temperatureField.data[index] = 0.
@@ -586,6 +585,7 @@ pressureField.data[:] = 0.
 
 
 
+# 
 # ##Add Random 125 K temp perturbation
 # 
 
@@ -889,7 +889,7 @@ while number_updated != 0:
                     materialVariable.data[particleID] = check
 
 
-# In[53]:
+# In[39]:
 
 ## Here we'll play around with some different crust-perturbations
 ##Voul inlude this is the Graph update function, but for now keep it seperate
@@ -898,29 +898,34 @@ while number_updated != 0:
 centre = 0.0
 #CRUSTTOMANTLE
 
-pert_shape = np.array([ (MANTLETOCRUST ,1. ), ((-1.*MANTLETOCRUST) ,(1.0 - CRUSTTOMANTLE) ), 
-                       (-1.*MANTLETOCRUST ,1. ), ((MANTLETOCRUST),(1.0 - CRUSTTOMANTLE ))])
+#square_shape = np.array([ (MANTLETOCRUST ,1. ), ((-1.*MANTLETOCRUST) ,(1.0 - CRUSTTOMANTLE) ), 
+#                       (-1.*MANTLETOCRUST ,1. ), ((MANTLETOCRUST),(1.0 - CRUSTTOMANTLE ))])
+#square_shape = fn.shape.Polygon( square_shape)
 
-pert_shape = fn.shape.Polygon( pert_shape)
+sub_zone = np.array([ ((2*MANTLETOCRUST),1. ), ((-2.*MANTLETOCRUST) ,1. ), 
+                     ((-2.*MANTLETOCRUST - 2*MANTLETOLITH ) ,(1.0 - CRUSTTOMANTLE/2.) ), ((2*MANTLETOCRUST - 2*MANTLETOLITH ),(1.0 - CRUSTTOMANTLE/2. )) ])
+shape = fn.shape.Polygon( sub_zone)
+
 
 for particleID in range( gSwarm.particleCoordinates.data.shape[0] ):
-    if pert_shape.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
+    if shape.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
         #print "true"
         materialVariable.data[particleID] = crustIndex
 
 
-# In[52]:
+# In[40]:
 
 figSwarm = glucifer.Figure(figsize=(1024,384))
 figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
 figSwarm.append( glucifer.objects.Mesh(mesh))
-#figSwarm.save_database('test.gldb')
+figSwarm.append( glucifer.objects.Surface(mesh, temperatureField))
+figSwarm.save_database('test.gldb')
 figSwarm.show()
 
 
-# ##Set the values for the masking swarms
+# ## Set the values for the masking swarms
 
-# In[39]:
+# In[38]:
 
 #Setup up a masking Swarm variable for the integrations.
 #These should be rebuilt at same frequency as the metric calcualtions
