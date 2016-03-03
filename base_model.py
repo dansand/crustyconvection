@@ -57,7 +57,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 11
+ModNum = 13
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -149,7 +149,9 @@ dp = edict({'LS':2890.*1e3,
            'V':6.34*(10**-7) })
 
 #non-dimensional parameter dictionary
-ndp = edict({'RA':1e6, 
+#One draw back of a dictionary structure, is that variables cannot link to other variables
+RAfac = 5.
+ndp = edict({'RA':1e6*RAfac,      
               'LS':1.,
               'eta0':1.,
               'k':1.,
@@ -159,8 +161,8 @@ ndp = edict({'RA':1e6,
               'TR':(1600./2500.),
               'TS':(dp.TS/2500.),
               'RD':1.,
-              'cohesion':1577.,
-              'cohesion_reduce':5.,
+              'cohesion':1577.*RAfac,
+              'cohesion_reduce':10.,
               'fc':0.1})
 
 
@@ -237,7 +239,7 @@ else:
     MAXY = 1.
 
 
-periodic = [True,False]
+periodic = [False,False]
 elementType = "Q1/dQ0"
 #elementType ="Q2/DPC1"
 
@@ -570,7 +572,7 @@ for index, coord in enumerate(mesh.data):
 # that these nodes are to be considered as boundary conditions. 
 # Also note that we provide a tuple of sets.. One for the Vx, one for Vy.
 freeslipBC = uw.conditions.DirichletCondition( variable      = velocityField, 
-                                               indexSetsPerDof = (None, JWalls) )
+                                               indexSetsPerDof = (IWalls, JWalls) )
 
 # also set dirichlet for temp field
 tempBC = uw.conditions.DirichletCondition(     variable=temperatureField, 
@@ -889,7 +891,7 @@ while number_updated != 0:
                     materialVariable.data[particleID] = check
 
 
-# In[39]:
+# In[37]:
 
 ## Here we'll play around with some different crust-perturbations
 ##Voul inlude this is the Graph update function, but for now keep it seperate
@@ -898,26 +900,34 @@ while number_updated != 0:
 centre = 0.0
 #CRUSTTOMANTLE
 
-#square_shape = np.array([ (MANTLETOCRUST ,1. ), ((-1.*MANTLETOCRUST) ,(1.0 - CRUSTTOMANTLE) ), 
-#                       (-1.*MANTLETOCRUST ,1. ), ((MANTLETOCRUST),(1.0 - CRUSTTOMANTLE ))])
-#square_shape = fn.shape.Polygon( square_shape)
+square_shape = np.array([ (MANTLETOCRUST ,1. ), (-1.*MANTLETOCRUST ,1. ), ((-1.*MANTLETOCRUST) , 
+                       (1.0 - CRUSTTOMANTLE/2.) ), ((MANTLETOCRUST),(1.0 - CRUSTTOMANTLE/2.))])
+square_shape = fn.shape.Polygon( square_shape)
 
-sub_zone = np.array([ ((2*MANTLETOCRUST),1. ), ((-2.*MANTLETOCRUST) ,1. ), 
-                     ((-2.*MANTLETOCRUST - 2*MANTLETOLITH ) ,(1.0 - CRUSTTOMANTLE/2.) ), ((2*MANTLETOCRUST - 2*MANTLETOLITH ),(1.0 - CRUSTTOMANTLE/2. )) ])
-shape = fn.shape.Polygon( sub_zone)
+sub_zone1 = np.array([ ((2*MANTLETOCRUST + 0.5*MANTLETOLITH),1. ), ((-2.*MANTLETOCRUST + 0.5*MANTLETOLITH) ,1. ), 
+                     ((-2.*MANTLETOCRUST - 0.5*MANTLETOLITH ) ,(1.0 - CRUSTTOMANTLE/2.) ), ((2*MANTLETOCRUST - 0.5*MANTLETOLITH ),(1.0 - CRUSTTOMANTLE/2. )) ])
+shape1 = fn.shape.Polygon( sub_zone1)
+
 
 
 for particleID in range( gSwarm.particleCoordinates.data.shape[0] ):
-    if shape.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
-        #print "true"
+    if square_shape.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
+#        #print "true"
         materialVariable.data[particleID] = crustIndex
+    #elif shape2.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
+    #    materialVariable.data[particleID] = crustIndex
 
 
-# In[40]:
+# In[38]:
+
+#shape.evaluate(
+
+
+# In[39]:
 
 figSwarm = glucifer.Figure(figsize=(1024,384))
 figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
-figSwarm.append( glucifer.objects.Mesh(mesh))
+#figSwarm.append( glucifer.objects.Mesh(mesh))
 figSwarm.append( glucifer.objects.Surface(mesh, temperatureField))
 figSwarm.save_database('test.gldb')
 figSwarm.show()
@@ -925,7 +935,7 @@ figSwarm.show()
 
 # ## Set the values for the masking swarms
 
-# In[38]:
+# In[ ]:
 
 #Setup up a masking Swarm variable for the integrations.
 #These should be rebuilt at same frequency as the metric calcualtions
@@ -948,7 +958,7 @@ lithIntVar.data[islith] = 1.
 
 # In the paper, Crameri and Tackley give the dimensionless cohesion as well as the dimensionless yield stress gradient. But the latter is given as a function of dimensionless (lithostatic) pressure, whereas it is easier to use dimensionless depth. Easy, multiply the dimensionless depth by $\rho g D$, divide by the stress scale, $\frac{\eta \kappa}{D^2}$ then use the same dimensionless yeild stress gradient ($\mu$)
 
-# In[37]:
+# In[ ]:
 
 # The yeilding of the upper slab is dependent on the strain rate.
 strainRate_2ndInvariant = fn.tensor.second_invariant( 
@@ -964,13 +974,13 @@ depth = 1. - coordinate[1]
 lithopressuregrad = dp.rho*dp.g*(dp.LS)**3/(dp.eta0*dp.k)
 
 
-# In[38]:
+# In[ ]:
 
 #Check important paramters
 print(ndp.E, ndp.V,ndp.TS,ndp.RD, ndp.TR, ndp.cohesion)
 
 
-# In[39]:
+# In[ ]:
 
 ############
 #Mantle
@@ -1017,7 +1027,7 @@ crustviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, crustplastic))
 # 
 # Here the functions for density, viscosity etc. are set. These functions and/or values are preserved for the entire simulation time. 
 
-# In[40]:
+# In[51]:
 
 # Here we set a viscosity value of '1.' for both materials
 viscosityMapFn = fn.branching.map( fn_key = materialVariable,
@@ -1048,7 +1058,7 @@ buoyancyFn = gravity*densityMapFn
 # 
 # Setup linear Stokes system to get the initial velocity.
 
-# In[41]:
+# In[52]:
 
 stokesPIC = uw.systems.Stokes( velocityField = velocityField, 
                                pressureField = pressureField,
@@ -1058,7 +1068,7 @@ stokesPIC = uw.systems.Stokes( velocityField = velocityField,
                                fn_bodyforce   = buoyancyFn )
 
 
-# In[42]:
+# In[53]:
 
 #We do one solve with linear viscosity to get the initial strain rate invariant. 
 #This solve step also calculates a 'guess' of the the velocity field based on the linear system, 
@@ -1070,7 +1080,7 @@ if not checkpointLoad:
     solver.solve()
 
 
-# In[ ]:
+# In[54]:
 
 solver.options
 
@@ -1078,7 +1088,7 @@ solver.options
 # * CG
 # * 
 
-# In[237]:
+# In[55]:
 
 ####################
 #Add the non-linear viscosity to the Stokes system
@@ -1099,7 +1109,7 @@ solver.options.mg.levels = 3
 solver.options.A11.ksp_converged_reason=''
 
 
-# In[2]:
+# In[56]:
 
 #solver.options.scr.ksp_set_min_it_converge
 
@@ -1107,12 +1117,12 @@ solver.options.A11.ksp_converged_reason=''
 # Solve non-linear system for pressure and velocity using Picard iteration
 # 
 
-# In[238]:
+# In[58]:
 
 solver.solve(nonLinearIterate=True)
 
 
-# In[239]:
+# In[59]:
 
 #Now check the stress.
 fn_stress = 2.*mantleviscosityFn*uw.function.tensor.symmetric(velocityField.fn_gradient)
@@ -1120,17 +1130,17 @@ fn_minmax_inv = fn.view.min_max(fn.tensor.second_invariant(fn_stress))
 ignore = fn_minmax_inv.evaluate(gSwarm)
 
 
-# In[240]:
+# In[60]:
 
 fn_minmax_inv.max_global()
 
 
-# In[241]:
+# In[61]:
 
 #np.isclose(fn_minmax_inv.max_global(), ys, rtol=1e-03)
 
 
-# In[242]:
+# In[62]:
 
 figTemp = glucifer.Figure()
 figTemp.append( glucifer.objects.Surface(mesh, fn.tensor.second_invariant(fn_stress)))
@@ -1309,6 +1319,7 @@ figDb.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown wh
 figDb.append( glucifer.objects.Mesh(mesh))
 figDb.append( glucifer.objects.VectorArrows(mesh,velocityField, arrowHead=0.2, scaling=0.002))
 figDb.append( glucifer.objects.Surface(mesh, strainRate_2ndInvariant, logScale=True, colours='brown white blue'))
+figDb.append( glucifer.objects.Surface(mesh, temperatureField))
 
 
 # Main simulation loop
@@ -1508,7 +1519,7 @@ f_o.close()
 #print 'step =',step, '; dt =', dt, '; CPU time =', time.clock()-startMain
 
 
-# In[ ]:
+# In[68]:
 
 viscVariable = gSwarm.add_variable( dataType="float", count=1 )
 viscVariable.data[:] = viscosityMapFn.evaluate(gSwarm)
@@ -1519,21 +1530,21 @@ figEta.show()
 figEta.save_database('test.gldb')
 
 
-# In[24]:
+# In[65]:
 
 figTemp = glucifer.Figure()
 figTemp.append( glucifer.objects.Surface(mesh, temperatureField))
-figTemp.append( glucifer.objects.Mesh(mesh))
+#figTemp.append( glucifer.objects.Mesh(mesh))
 
-#figTemp.append( glucifer.objects.VectorArrows(mesh,velocityField, arrowHead=0.2, scaling=0.005))
-figTemp.save_database('test.gldb')
+figTemp.append( glucifer.objects.VectorArrows(mesh,velocityField, arrowHead=0.2, scaling=0.0001))
+#figTemp.save_database('test.gldb')
 figTemp.show()
 
 
-# In[51]:
+# In[66]:
 
 figVelocityMag = glucifer.Figure(figsize=(1024,384))
-figVelocityMag.append( glucifer.objects.Surface(mesh, fn.math.dot(velocityField,velocityField) ))
+figVelocityMag.append( glucifer.objects.Surface(mesh, fn.math.dot(velocityField,velocityField), logScale=True))
 figVelocityMag.show()
 
 
@@ -1544,13 +1555,18 @@ figVelocityMag.append( glucifer.objects.Surface(mesh, pressureField, logScale=Tr
 figVelocityMag.show()
 
 
-# In[42]:
+# In[55]:
+
+figVelocityMag
+
+
+# In[67]:
 
 figSwarm = glucifer.Figure(figsize=(1024,384))
 figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
 figSwarm.append( glucifer.objects.Mesh(mesh))
 figSwarm.show()
-figSwarm.save_database('test.gldb')
+#figSwarm.save_database('test.gldb')
 
 
 # In[53]:
