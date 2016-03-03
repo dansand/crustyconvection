@@ -911,7 +911,7 @@ shape1 = fn.shape.Polygon( sub_zone1)
 
 
 for particleID in range( gSwarm.particleCoordinates.data.shape[0] ):
-    if square_shape.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
+    if shape1.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
 #        #print "true"
         materialVariable.data[particleID] = crustIndex
     #elif shape2.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
