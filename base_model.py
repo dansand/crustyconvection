@@ -20,7 +20,7 @@
 
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
-# In[1]:
+# In[40]:
 
 import networkx as nx
 import underworld as uw
@@ -42,7 +42,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[2]:
+# In[41]:
 
 #Display working directory info if in nb mode
 if (len(sys.argv) > 1):
@@ -51,7 +51,7 @@ if (len(sys.argv) > 1):
         
 
 
-# In[3]:
+# In[42]:
 
 ############
 #Model name.  
@@ -69,7 +69,7 @@ else:
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*). 
 
-# In[4]:
+# In[43]:
 
 ###########
 #Standard output directory setup
@@ -99,7 +99,7 @@ if uw.rank()==0:
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
 
-# In[5]:
+# In[44]:
 
 ###########
 #Check if starting from checkpoint
@@ -117,7 +117,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
         
 
 
-# In[6]:
+# In[79]:
 
 ###########
 #Physical parameters
@@ -150,7 +150,7 @@ dp = edict({'LS':2890.*1e3,
 
 #non-dimensional parameter dictionary
 #One draw back of a dictionary structure, is that variables cannot link to other variables
-RAfac = 5.
+RAfac = 10.
 ndp = edict({'RA':1e6*RAfac,      
               'LS':1.,
               'eta0':1.,
@@ -163,7 +163,9 @@ ndp = edict({'RA':1e6*RAfac,
               'RD':1.,
               'cohesion':1577.*RAfac,
               'cohesion_reduce':10.,
-              'fc':0.1})
+              'fc':0.1, 
+              'low_visc':RAfac*1e-4,
+              'up_visc':1e5})
 
 
 #A few parameters defining lengths scales, affects materal transistions etc.
@@ -197,7 +199,7 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[7]:
+# In[46]:
 
 ###########
 #Model setup parameters
@@ -253,14 +255,14 @@ ALPHA = 11. #Mesh refinement parameter
 PIC_integration=False
 
 
-# In[8]:
+# In[47]:
 
 ###########
 #Model Runtime parameters
 ###########
 
 swarm_update = 25
-swarm_repop = 25
+swarm_repop = 5
 files_output = 1e6
 gldbs_output = 25
 images_output = 1e6
@@ -275,7 +277,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[9]:
+# In[48]:
 
 ###########
 #Model output parameters
@@ -286,7 +288,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[10]:
+# In[49]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres), 
@@ -301,7 +303,7 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[11]:
+# In[50]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim 
 
@@ -355,7 +357,7 @@ Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim
 #             mesh.data[:,1] = newys
 #             mesh.data[:,0] = newxs
 
-# In[12]:
+# In[51]:
 
 # Get the actual sets 
 #
@@ -376,7 +378,7 @@ BWalls = mesh.specialSets["MinJ_VertexSet"]
 AWalls = IWalls + JWalls
 
 
-# In[13]:
+# In[52]:
 
 def coarse_fine_division(mesh, axis="y", refine_by=2., relax_by =0.5):
     if axis == "y":
@@ -499,7 +501,7 @@ def shishkin_deform(mesh, centre = 0.5, axis="y", refine_by=2., relax_by =0.5):
 #     mesh.data[:,0] = newxs
 #     mesh.data[:,0] = newxs
 
-# In[14]:
+# In[53]:
 
 if refineMesh:
     shishkin_deform(mesh, centre = 0.9, axis="y", refine_by=2.0, relax_by =0.5)
@@ -513,7 +515,7 @@ if refineMesh:
 
 # #ICs and BCs
 
-# In[15]:
+# In[54]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
@@ -536,7 +538,7 @@ def tempf(z,w,t0=0.64):
 
 
 
-# In[16]:
+# In[55]:
 
 for index, coord in enumerate(mesh.data):
     w = wbl(coord[0])
@@ -559,13 +561,13 @@ for index, coord in enumerate(mesh.data):
         temperatureField.data[index] = 0.
 
 
-# In[17]:
+# In[56]:
 
 #For notebook runs
 #ModIt = "96"
 
 
-# In[18]:
+# In[57]:
 
 # Now setup the dirichlet boundary condition
 # Note that through this object, we are flagging to the system 
@@ -591,7 +593,7 @@ pressureField.data[:] = 0.
 # ##Add Random 125 K temp perturbation
 # 
 
-# In[19]:
+# In[58]:
 
 tempNump = temperatureField.data
 
@@ -606,7 +608,7 @@ if not checkpointLoad:
 
 # ##Reset bottom Dirichlet conds.
 
-# In[20]:
+# In[59]:
 
 # Set temp boundaries 
 # on the boundaries
@@ -616,14 +618,14 @@ for index in mesh.specialSets["MaxJ_VertexSet"]:
     temperatureField.data[index] = ndp.TS
 
 
-# In[21]:
+# In[60]:
 
 #temperatureField.evaluate(IWalls).min()
 
 
 # #Particles
 
-# In[22]:
+# In[61]:
 
 ###########
 #Material Swarm and variables
@@ -639,7 +641,7 @@ varlist = [materialVariable, rockIntVar, airIntVar, lithIntVar]
 varnames = ['materialVariable', 'rockIntVar', 'airIntVar', 'lithIntVar']
 
 
-# In[23]:
+# In[62]:
 
 ###########
 #Swarms for surface intragrals when using Sticky air
@@ -664,7 +666,7 @@ dumout = baseintswarm.add_particles_with_coordinates(np.array((xps,yps)).T)
 
 # #Initialise swarm variables, or Swarm checkpoint load
 
-# In[24]:
+# In[63]:
 
 mantleIndex = 0
 lithosphereIndex = 1
@@ -709,7 +711,7 @@ else:
 
 # #Material Graphs
 
-# In[25]:
+# In[64]:
 
 ##############
 #Important: This is a quick fix for a bug that arises in parallel runs
@@ -717,12 +719,12 @@ else:
 material_list = [0,1,2,3]
 
 
-# In[26]:
+# In[65]:
 
 print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.data[:])))
 
 
-# In[27]:
+# In[66]:
 
 
 
@@ -772,12 +774,12 @@ DG[0][2]['depthcondition'] = MANTLETOCRUST
 DG[1][2]['depthcondition'] = MANTLETOCRUST
 
 
-# In[28]:
+# In[67]:
 
 DG.nodes()
 
 
-# In[29]:
+# In[68]:
 
 remove_nodes = []
 for node in DG.nodes():
@@ -788,12 +790,12 @@ for rmnode in remove_nodes:
     DG.remove_node(rmnode)
 
 
-# In[30]:
+# In[69]:
 
 DG.nodes()
 
 
-# In[31]:
+# In[70]:
 
 
 #remove_nodes = []
@@ -805,7 +807,7 @@ DG.nodes()
 #    DG.remove_node(rmnode)
 
 
-# In[32]:
+# In[71]:
 
 #A Dictionary to map strings in the graph (e.g. 'depthcondition') to particle data arrays
 
@@ -820,7 +822,7 @@ conditionmap['avgtempcondition'] = {}
 conditionmap['avgtempcondition']['data'] = particletemps
 
 
-# In[33]:
+# In[72]:
 
 def update_swarm(graph, particleIndex):
     """
@@ -869,12 +871,12 @@ def update_swarm(graph, particleIndex):
         return innerchange
 
 
-# In[34]:
+# In[73]:
 
 #fn.branching.conditional?
 
 
-# In[35]:
+# In[74]:
 
 #Cleanse the swarm of its sins
 #For some Material Graphs, the graph may have to be treaversed more than once
@@ -891,7 +893,7 @@ while number_updated != 0:
                     materialVariable.data[particleID] = check
 
 
-# In[37]:
+# In[75]:
 
 ## Here we'll play around with some different crust-perturbations
 ##Voul inlude this is the Graph update function, but for now keep it seperate
@@ -918,12 +920,12 @@ for particleID in range( gSwarm.particleCoordinates.data.shape[0] ):
     #    materialVariable.data[particleID] = crustIndex
 
 
-# In[38]:
+# In[76]:
 
 #shape.evaluate(
 
 
-# In[39]:
+# In[77]:
 
 figSwarm = glucifer.Figure(figsize=(1024,384))
 figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
@@ -935,7 +937,7 @@ figSwarm.show()
 
 # ## Set the values for the masking swarms
 
-# In[ ]:
+# In[78]:
 
 #Setup up a masking Swarm variable for the integrations.
 #These should be rebuilt at same frequency as the metric calcualtions
@@ -958,7 +960,7 @@ lithIntVar.data[islith] = 1.
 
 # In the paper, Crameri and Tackley give the dimensionless cohesion as well as the dimensionless yield stress gradient. But the latter is given as a function of dimensionless (lithostatic) pressure, whereas it is easier to use dimensionless depth. Easy, multiply the dimensionless depth by $\rho g D$, divide by the stress scale, $\frac{\eta \kappa}{D^2}$ then use the same dimensionless yeild stress gradient ($\mu$)
 
-# In[ ]:
+# In[83]:
 
 # The yeilding of the upper slab is dependent on the strain rate.
 strainRate_2ndInvariant = fn.tensor.second_invariant( 
@@ -974,28 +976,28 @@ depth = 1. - coordinate[1]
 lithopressuregrad = dp.rho*dp.g*(dp.LS)**3/(dp.eta0*dp.k)
 
 
-# In[ ]:
+# In[84]:
 
 #Check important paramters
 print(ndp.E, ndp.V,ndp.TS,ndp.RD, ndp.TR, ndp.cohesion)
 
 
-# In[ ]:
+# In[85]:
 
 ############
 #Mantle
 ############
 
 #Linear viscosity
-arhennius = fn.misc.min(1e5,fn.math.exp(((ndp.E + ndp.V*(1.-coordinate[1]))/
+arhennius = fn.misc.min(ndp.up_visc,fn.math.exp(((ndp.E + ndp.V*(1.-coordinate[1]))/
                                          (temperatureField + ndp.TS)) - ((ndp.E + ndp.V*(1.- ndp.RD))/(ndp.TR + ndp.TS))))
 
 #Psuedo-plastic 
 ys =  ndp.cohesion + (depth*ndp.fc*lithopressuregrad)
 #ys =  ndp.fc*lithopressuregrad*(30e3/dp.LS) # this is the byerlee strength at 30 km
-yss = fn.misc.max(1577., ys)
+yss = fn.misc.max(ndp.cohesion, ys)
 plasticvisc = yss*(math.sqrt(2))/(strainRate_2ndInvariant*2.)
-plastic = fn.misc.max(1e-4,plasticvisc)
+plastic = fn.misc.max(ndp.low_visc,plasticvisc)
 #combine these
 mantleviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, plastic))
 
@@ -1009,7 +1011,7 @@ ysc = (ndp.cohesion/ndp.cohesion_reduce) + (depth*(ndp.fc/100.)*lithopressuregra
 #ysc = ys/100.
 ycs = fn.misc.max((ndp.cohesion/ndp.cohesion_reduce), ysc)
 crustplasticvisc = ycs*(math.sqrt(2))/(strainRate_2ndInvariant*2.)
-crustplastic = fn.misc.max(1e-4,crustplasticvisc) 
+crustplastic = fn.misc.max(ndp.low_visc,crustplasticvisc) 
 crustviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, crustplastic))
 
 
