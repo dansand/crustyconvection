@@ -20,7 +20,7 @@
 
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
-# In[40]:
+# In[125]:
 
 import networkx as nx
 import underworld as uw
@@ -42,7 +42,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[41]:
+# In[126]:
 
 #Display working directory info if in nb mode
 if (len(sys.argv) > 1):
@@ -51,13 +51,13 @@ if (len(sys.argv) > 1):
         
 
 
-# In[42]:
+# In[127]:
 
 ############
 #Model name.  
 ############
 Model = "T"
-ModNum = 13
+ModNum = 15
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -69,7 +69,7 @@ else:
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*). 
 
-# In[43]:
+# In[128]:
 
 ###########
 #Standard output directory setup
@@ -99,7 +99,7 @@ if uw.rank()==0:
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
 
-# In[44]:
+# In[129]:
 
 ###########
 #Check if starting from checkpoint
@@ -117,7 +117,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
         
 
 
-# In[79]:
+# In[130]:
 
 ###########
 #Physical parameters
@@ -199,7 +199,7 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[46]:
+# In[131]:
 
 ###########
 #Model setup parameters
@@ -225,7 +225,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 128
+RES = 256
 
 if MINX == 0.:
     Xres = RES
@@ -245,7 +245,7 @@ periodic = [False,False]
 elementType = "Q1/dQ0"
 #elementType ="Q2/DPC1"
 
-refineMesh = True
+refineMesh = False
 
 s = 1.2 #Mesh refinement parameter
 ALPHA = 11. #Mesh refinement parameter
@@ -255,7 +255,7 @@ ALPHA = 11. #Mesh refinement parameter
 PIC_integration=False
 
 
-# In[47]:
+# In[132]:
 
 ###########
 #Model Runtime parameters
@@ -277,7 +277,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[48]:
+# In[133]:
 
 ###########
 #Model output parameters
@@ -288,7 +288,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[49]:
+# In[134]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres), 
@@ -303,7 +303,7 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[50]:
+# In[135]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim 
 
@@ -357,7 +357,7 @@ Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim
 #             mesh.data[:,1] = newys
 #             mesh.data[:,0] = newxs
 
-# In[51]:
+# In[136]:
 
 # Get the actual sets 
 #
@@ -378,7 +378,7 @@ BWalls = mesh.specialSets["MinJ_VertexSet"]
 AWalls = IWalls + JWalls
 
 
-# In[52]:
+# In[137]:
 
 def coarse_fine_division(mesh, axis="y", refine_by=2., relax_by =0.5):
     if axis == "y":
@@ -501,7 +501,7 @@ def shishkin_deform(mesh, centre = 0.5, axis="y", refine_by=2., relax_by =0.5):
 #     mesh.data[:,0] = newxs
 #     mesh.data[:,0] = newxs
 
-# In[53]:
+# In[138]:
 
 if refineMesh:
     shishkin_deform(mesh, centre = 0.9, axis="y", refine_by=2.0, relax_by =0.5)
@@ -513,9 +513,9 @@ if refineMesh:
 
 
 
-# #ICs and BCs
+# # ICs and BCs
 
-# In[54]:
+# In[139]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
@@ -531,19 +531,26 @@ def wbl(x, w0 = 0.06):
     return Wbl
 
 
-
 def tempf(z,w,t0=0.64):
     temp = t0*math.erf((1-z)/w)
     return temp
 
 
 
-# In[55]:
+# In[140]:
+
+age_asymmetry = 2.
 
 for index, coord in enumerate(mesh.data):
-    w = wbl(coord[0])
-    t = tempf(coord[1], w)
-    temperatureField.data[index] = t
+    if coord[0] > 0.:
+        w = wbl(coord[0])
+        t = tempf(coord[1], w)
+        temperatureField.data[index] = t
+    else:
+        w = wbl(coord[0])/age_asymmetry
+        t = tempf(coord[1], w)
+        temperatureField.data[index] = t
+        
 
 
 for index, coord in enumerate(mesh.data):
@@ -561,13 +568,13 @@ for index, coord in enumerate(mesh.data):
         temperatureField.data[index] = 0.
 
 
-# In[56]:
+# In[141]:
 
 #For notebook runs
 #ModIt = "96"
 
 
-# In[57]:
+# In[142]:
 
 # Now setup the dirichlet boundary condition
 # Note that through this object, we are flagging to the system 
@@ -593,7 +600,7 @@ pressureField.data[:] = 0.
 # ##Add Random 125 K temp perturbation
 # 
 
-# In[58]:
+# In[143]:
 
 tempNump = temperatureField.data
 
@@ -608,7 +615,7 @@ if not checkpointLoad:
 
 # ##Reset bottom Dirichlet conds.
 
-# In[59]:
+# In[144]:
 
 # Set temp boundaries 
 # on the boundaries
@@ -618,14 +625,14 @@ for index in mesh.specialSets["MaxJ_VertexSet"]:
     temperatureField.data[index] = ndp.TS
 
 
-# In[60]:
+# In[145]:
 
 #temperatureField.evaluate(IWalls).min()
 
 
 # #Particles
 
-# In[61]:
+# In[146]:
 
 ###########
 #Material Swarm and variables
@@ -641,7 +648,7 @@ varlist = [materialVariable, rockIntVar, airIntVar, lithIntVar]
 varnames = ['materialVariable', 'rockIntVar', 'airIntVar', 'lithIntVar']
 
 
-# In[62]:
+# In[147]:
 
 ###########
 #Swarms for surface intragrals when using Sticky air
@@ -666,7 +673,7 @@ dumout = baseintswarm.add_particles_with_coordinates(np.array((xps,yps)).T)
 
 # #Initialise swarm variables, or Swarm checkpoint load
 
-# In[63]:
+# In[148]:
 
 mantleIndex = 0
 lithosphereIndex = 1
@@ -711,7 +718,7 @@ else:
 
 # #Material Graphs
 
-# In[64]:
+# In[149]:
 
 ##############
 #Important: This is a quick fix for a bug that arises in parallel runs
@@ -719,12 +726,12 @@ else:
 material_list = [0,1,2,3]
 
 
-# In[65]:
+# In[150]:
 
 print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.data[:])))
 
 
-# In[66]:
+# In[151]:
 
 
 
@@ -774,12 +781,12 @@ DG[0][2]['depthcondition'] = MANTLETOCRUST
 DG[1][2]['depthcondition'] = MANTLETOCRUST
 
 
-# In[67]:
+# In[152]:
 
 DG.nodes()
 
 
-# In[68]:
+# In[153]:
 
 remove_nodes = []
 for node in DG.nodes():
@@ -790,12 +797,12 @@ for rmnode in remove_nodes:
     DG.remove_node(rmnode)
 
 
-# In[69]:
+# In[154]:
 
 DG.nodes()
 
 
-# In[70]:
+# In[155]:
 
 
 #remove_nodes = []
@@ -807,7 +814,7 @@ DG.nodes()
 #    DG.remove_node(rmnode)
 
 
-# In[71]:
+# In[156]:
 
 #A Dictionary to map strings in the graph (e.g. 'depthcondition') to particle data arrays
 
@@ -822,7 +829,7 @@ conditionmap['avgtempcondition'] = {}
 conditionmap['avgtempcondition']['data'] = particletemps
 
 
-# In[72]:
+# In[157]:
 
 def update_swarm(graph, particleIndex):
     """
@@ -871,12 +878,12 @@ def update_swarm(graph, particleIndex):
         return innerchange
 
 
-# In[73]:
+# In[158]:
 
 #fn.branching.conditional?
 
 
-# In[74]:
+# In[159]:
 
 #Cleanse the swarm of its sins
 #For some Material Graphs, the graph may have to be treaversed more than once
@@ -893,7 +900,7 @@ while number_updated != 0:
                     materialVariable.data[particleID] = check
 
 
-# In[75]:
+# In[160]:
 
 ## Here we'll play around with some different crust-perturbations
 ##Voul inlude this is the Graph update function, but for now keep it seperate
@@ -920,12 +927,12 @@ for particleID in range( gSwarm.particleCoordinates.data.shape[0] ):
     #    materialVariable.data[particleID] = crustIndex
 
 
-# In[76]:
+# In[161]:
 
 #shape.evaluate(
 
 
-# In[77]:
+# In[162]:
 
 figSwarm = glucifer.Figure(figsize=(1024,384))
 figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
@@ -937,7 +944,7 @@ figSwarm.show()
 
 # ## Set the values for the masking swarms
 
-# In[78]:
+# In[163]:
 
 #Setup up a masking Swarm variable for the integrations.
 #These should be rebuilt at same frequency as the metric calcualtions
@@ -960,7 +967,7 @@ lithIntVar.data[islith] = 1.
 
 # In the paper, Crameri and Tackley give the dimensionless cohesion as well as the dimensionless yield stress gradient. But the latter is given as a function of dimensionless (lithostatic) pressure, whereas it is easier to use dimensionless depth. Easy, multiply the dimensionless depth by $\rho g D$, divide by the stress scale, $\frac{\eta \kappa}{D^2}$ then use the same dimensionless yeild stress gradient ($\mu$)
 
-# In[83]:
+# In[165]:
 
 # The yeilding of the upper slab is dependent on the strain rate.
 strainRate_2ndInvariant = fn.tensor.second_invariant( 
@@ -976,13 +983,13 @@ depth = 1. - coordinate[1]
 lithopressuregrad = dp.rho*dp.g*(dp.LS)**3/(dp.eta0*dp.k)
 
 
-# In[84]:
+# In[166]:
 
 #Check important paramters
 print(ndp.E, ndp.V,ndp.TS,ndp.RD, ndp.TR, ndp.cohesion)
 
 
-# In[85]:
+# In[167]:
 
 ############
 #Mantle
@@ -1029,7 +1036,7 @@ crustviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, crustplastic))
 # 
 # Here the functions for density, viscosity etc. are set. These functions and/or values are preserved for the entire simulation time. 
 
-# In[51]:
+# In[168]:
 
 # Here we set a viscosity value of '1.' for both materials
 viscosityMapFn = fn.branching.map( fn_key = materialVariable,
@@ -1060,7 +1067,7 @@ buoyancyFn = gravity*densityMapFn
 # 
 # Setup linear Stokes system to get the initial velocity.
 
-# In[52]:
+# In[169]:
 
 stokesPIC = uw.systems.Stokes( velocityField = velocityField, 
                                pressureField = pressureField,
@@ -1070,7 +1077,7 @@ stokesPIC = uw.systems.Stokes( velocityField = velocityField,
                                fn_bodyforce   = buoyancyFn )
 
 
-# In[53]:
+# In[170]:
 
 #We do one solve with linear viscosity to get the initial strain rate invariant. 
 #This solve step also calculates a 'guess' of the the velocity field based on the linear system, 
@@ -1105,10 +1112,16 @@ solver.options.scr.ksp_rtol=1e-5
 solver.options.scr.use_previous_guess = True
 solver.options.scr.ksp_set_min_it_converge = 1
 
-solver.options.mg.levels = 3
+#solver.options.mg.levels = 3
 
 #solver.options.A11.ksp_monitor=''
 solver.options.A11.ksp_converged_reason=''
+
+
+# In[175]:
+
+#solver.options.A11.ksp_type
+#solver.options.main.
 
 
 # In[56]:
@@ -1550,10 +1563,10 @@ figVelocityMag.append( glucifer.objects.Surface(mesh, fn.math.dot(velocityField,
 figVelocityMag.show()
 
 
-# In[52]:
+# In[172]:
 
 figVelocityMag = glucifer.Figure(figsize=(1024,384))
-figVelocityMag.append( glucifer.objects.Surface(mesh, pressureField, logScale=True, valueRange=[1e-15,5e-8]) )
+figVelocityMag.append( glucifer.objects.Surface(mesh, temperatureField, logScale=True, valueRange=[1e-15,5e-8]) )
 figVelocityMag.show()
 
 
