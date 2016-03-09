@@ -20,7 +20,7 @@
 
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
-# In[26]:
+# In[1]:
 
 import networkx as nx
 import underworld as uw
@@ -42,7 +42,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[27]:
+# In[2]:
 
 #Display working directory info if in nb mode
 if (len(sys.argv) > 1):
@@ -51,13 +51,13 @@ if (len(sys.argv) > 1):
         
 
 
-# In[28]:
+# In[3]:
 
 ############
 #Model name.  
 ############
 Model = "T"
-ModNum = 16
+ModNum = 18
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -69,7 +69,7 @@ else:
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*). 
 
-# In[29]:
+# In[4]:
 
 ###########
 #Standard output directory setup
@@ -99,7 +99,7 @@ if uw.rank()==0:
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
 
-# In[30]:
+# In[5]:
 
 ###########
 #Check if starting from checkpoint
@@ -117,7 +117,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
         
 
 
-# In[31]:
+# In[6]:
 
 ###########
 #Physical parameters
@@ -199,7 +199,7 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[32]:
+# In[7]:
 
 ###########
 #Model setup parameters
@@ -255,7 +255,7 @@ ALPHA = 11. #Mesh refinement parameter
 PIC_integration=False
 
 
-# In[33]:
+# In[8]:
 
 ###########
 #Model Runtime parameters
@@ -277,7 +277,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[34]:
+# In[9]:
 
 ###########
 #Model output parameters
@@ -288,7 +288,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[35]:
+# In[10]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres), 
@@ -303,7 +303,12 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[36]:
+# In[11]:
+
+print("mesh size", mesh.data.shape, mesh.elementRes)
+
+
+# In[12]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim 
 
@@ -357,7 +362,7 @@ Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim
 #             mesh.data[:,1] = newys
 #             mesh.data[:,0] = newxs
 
-# In[37]:
+# In[13]:
 
 # Get the actual sets 
 #
@@ -378,7 +383,7 @@ BWalls = mesh.specialSets["MinJ_VertexSet"]
 AWalls = IWalls + JWalls
 
 
-# In[38]:
+# In[14]:
 
 def coarse_fine_division(mesh, axis="y", refine_by=2., relax_by =0.5):
     if axis == "y":
@@ -407,8 +412,10 @@ def coarse_fine_division(mesh, axis="y", refine_by=2., relax_by =0.5):
 
 nxf, dxf, nxc, dxc = coarse_fine_division(mesh, axis="x", refine_by=2., relax_by =0.5)
 
-def shishkin_centre_arrange(mesh, axis="y",centre = 0.5, nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc):
-    """Returns mesh coordinate arrays for "axis", given 
+def shishkin_centre_arrange(mesh,  nxf, dxf, nxc, dxc, axis="y",centre = 0.5):
+    """Returns dictionary that maps
+    original coordinates to new coordinaters.
+    
     nxf: number of fine elements
     dxf: size of fine elements
     nxc: number or coarse elements
@@ -458,63 +465,50 @@ def shishkin_centre_arrange(mesh, axis="y",centre = 0.5, nxf=nxf, dxf=dxf, nxc=n
         #ccoords.append(mesh.maxCoord[0])
         pass
     newcoords = lcoords+ ccoords+ rcoords
-    
-    #yvals, xvals =  np.meshgrid(newcoords, list(np.unique(mesh.data[:,0])))
-    
+    #assert len(newcoords) == nx + 1
+    #origcoords = list(np.unique(mesh.data[:,thisaxis]))
+    #origcoords = np.linspace(mesh.minCoord[thisaxis], mesh.maxCoord[thisaxis], mesh.elementRes[thisaxis])
+    width = (mesh.maxCoord[thisaxis]-mesh.minCoord[thisaxis])
+    dx = (mesh.maxCoord[thisaxis]-mesh.minCoord[thisaxis])/ (mesh.elementRes[thisaxis])
+    origcoords = list(np.arange(mesh.minCoord[thisaxis], mesh.maxCoord[thisaxis], dx))
+    origcoords.append(mesh.maxCoord[thisaxis])
+    origcoords = [round(elem, 5) for elem in origcoords]
+    dictionary = dict(itertools.izip(origcoords, newcoords))
+    assert len([x for x, y in collections.Counter(newcoords).items() if y > 1]) == 0 #checks agains multiple coordinates
+    return dictionary
+
+
+# In[15]:
+
+def shishkin_deform(mesh, centre = 0.5, axis="y", refine_by=2., relax_by =0.5):
     if axis == "y":
-        xvals, yvals =  np.meshgrid(np.unique(mesh.data[:,0]), newcoords)
-        return yvals
-    if axis == "x":
-        xvals, yvals =  np.meshgrid(newcoords, np.unique(mesh.data[:,1]))
-        return xvals
+        thisaxis = 1
+    else:
+        thisaxis = 0
+    nxf, dxf, nxc, dxc, = coarse_fine_division(mesh,axis, refine_by=refine_by, relax_by =relax_by)
+    coorddict = shishkin_centre_arrange(mesh, nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc, axis=axis , centre=centre)
+    with mesh.deform_mesh():
+        for index, coord in enumerate(mesh.data):
+            key =  round(mesh.data[index][thisaxis], 5)
+            #if key == '0.00000':
+            #    key = '-0.00000'
+            #print key, coorddict[key]
+            mesh.data[index][thisaxis] = coorddict[key]
 
 
-# mesh.reset()
-# nxf, dxf, nxc, dxc, = coarse_fine_division(mesh,axis="x", refine_by=2., relax_by =0.75)
-# xcoorddict = shishkin_centre_arrange(mesh, axis="x", centre=0., nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc)
-# 
-# nxf, dxf, nxc, dxc, = coarse_fine_division(mesh,axis="y", refine_by=2., relax_by =0.5)
-# ycoorddict = shishkin_centre_arrange(mesh, axis="y", centre=0., nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc)
-#             
-# 
-# newxs = []
-# newys = []
-# for index, coord in enumerate(mesh.data):
-#     x0 = coord[0]
-#     y0 = coord[1]
-#     xkey = mesh.data[index][0]
-#     ykey = mesh.data[index][1]
-#     newx = xcoorddict[key]
-#     newy = ycoorddict[key]
-#     newxs.append(newx)
-# 
-# with mesh.deform_mesh():
-#     mesh.data[:,0] = newxs
-#     mesh.data[:,0] = newxs
-
-# In[39]:
-
-refine_by=1.25
-relax_by =0.75
+# In[16]:
 
 if refineMesh:
-    nxf, dxf, nxc, dxc, = coarse_fine_division(mesh,axis="y", refine_by=refine_by, relax_by =relax_by)
-    ycoords = shishkin_centre_arrange(mesh, nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc, axis="y" , centre=1.)
-
-    nxf, dxf, nxc, dxc, = coarse_fine_division(mesh,axis="x",  refine_by=refine_by, relax_by =relax_by)
-    xcoords = shishkin_centre_arrange(mesh, nxf=nxf, dxf=dxf, nxc=nxc, dxc=dxc, axis="x" , centre=0.)
-    with mesh.deform_mesh():
-        mesh.data[:,1] = ycoords.flatten()
-        mesh.data[:,0] = xcoords.flatten()
-    
+    shishkin_deform(mesh, centre = 0.9, axis="y", refine_by=1.25, relax_by =0.75)
+    shishkin_deform(mesh, centre = 0.0, axis="x", refine_by=1.25, relax_by =0.75)
 
 
-# In[40]:
+# In[18]:
 
 #mesh.reset()
 
 
-# In[41]:
+# In[19]:
 
 figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
 #figMesh.append( glucifer.objects.Mesh(mesh.subMesh, nodeNumbers=True) )
@@ -524,7 +518,7 @@ figMesh.show()
 
 # # ICs and BCs
 
-# In[42]:
+# In[17]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
