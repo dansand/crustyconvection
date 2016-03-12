@@ -20,7 +20,7 @@
 
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
-# In[134]:
+# In[170]:
 
 import networkx as nx
 import underworld as uw
@@ -42,7 +42,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[135]:
+# In[171]:
 
 #Display working directory info if in nb mode
 if (len(sys.argv) > 1):
@@ -51,7 +51,7 @@ if (len(sys.argv) > 1):
         
 
 
-# In[136]:
+# In[172]:
 
 ############
 #Model name.  
@@ -69,7 +69,7 @@ else:
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*). 
 
-# In[137]:
+# In[173]:
 
 ###########
 #Standard output directory setup
@@ -99,7 +99,7 @@ if uw.rank()==0:
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
 
-# In[138]:
+# In[174]:
 
 ###########
 #Check if starting from checkpoint
@@ -117,7 +117,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
         
 
 
-# In[139]:
+# In[175]:
 
 ###########
 #Physical parameters
@@ -165,7 +165,8 @@ ndp = edict({'RA':1e6*RAfac,
               'cohesion_reduce':10.,
               'fc':0.1, 
               'low_visc':RAfac*1e-4,
-              'up_visc':1e5})
+              'up_visc':1e5,
+              'random_temp': 0.00})
 
 
 #A few parameters defining lengths scales, affects materal transistions etc.
@@ -199,7 +200,7 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[140]:
+# In[176]:
 
 ###########
 #Model setup parameters
@@ -255,7 +256,7 @@ ALPHA = 11. #Mesh refinement parameter
 PIC_integration=False
 
 
-# In[141]:
+# In[177]:
 
 ###########
 #Model Runtime parameters
@@ -277,7 +278,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[142]:
+# In[178]:
 
 ###########
 #Model output parameters
@@ -288,7 +289,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[143]:
+# In[179]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres), 
@@ -303,12 +304,12 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[144]:
+# In[180]:
 
 print("mesh size", mesh.data.shape, mesh.elementRes)
 
 
-# In[145]:
+# In[181]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim 
 
@@ -362,7 +363,7 @@ Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim
 #             mesh.data[:,1] = newys
 #             mesh.data[:,0] = newxs
 
-# In[146]:
+# In[182]:
 
 # Get the actual sets 
 #
@@ -383,7 +384,7 @@ BWalls = mesh.specialSets["MinJ_VertexSet"]
 AWalls = IWalls + JWalls
 
 
-# In[147]:
+# In[183]:
 
 def coarse_fine_division(mesh, axis="y", refine_by=2., relax_by =0.5):
     if axis == "y":
@@ -478,7 +479,7 @@ def shishkin_centre_arrange(mesh,  nxf, dxf, nxc, dxc, axis="y",centre = 0.5):
     return dictionary
 
 
-# In[148]:
+# In[184]:
 
 def shishkin_deform(mesh, centre = 0.5, axis="y", refine_by=2., relax_by =0.5):
     if axis == "y":
@@ -496,24 +497,24 @@ def shishkin_deform(mesh, centre = 0.5, axis="y", refine_by=2., relax_by =0.5):
             mesh.data[index][thisaxis] = coorddict[key]
 
 
-# In[149]:
+# In[185]:
 
 if refineMesh:
     shishkin_deform(mesh, centre = 0.9, axis="y", refine_by=1.25, relax_by =0.75)
     shishkin_deform(mesh, centre = 0.0, axis="x", refine_by=1.25, relax_by =0.75)
 
 
-# In[150]:
+# In[186]:
 
 192/2/2/2/2/2/2
 
 
-# In[151]:
+# In[187]:
 
 #mesh.reset()
 
 
-# In[152]:
+# In[188]:
 
 figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
 #figMesh.append( glucifer.objects.Mesh(mesh.subMesh, nodeNumbers=True) )
@@ -523,7 +524,7 @@ figMesh.show()
 
 # # ICs and BCs
 
-# In[153]:
+# In[189]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
@@ -545,7 +546,7 @@ def tempf(z,w,t0=0.64):
 
 
 
-# In[65]:
+# In[190]:
 
 age_asymmetry = 2.
 
@@ -576,13 +577,13 @@ for index, coord in enumerate(mesh.data):
         temperatureField.data[index] = 0.
 
 
-# In[66]:
+# In[191]:
 
 #For notebook runs
 #ModIt = "96"
 
 
-# In[67]:
+# In[192]:
 
 # Now setup the dirichlet boundary condition
 # Note that through this object, we are flagging to the system 
@@ -608,22 +609,25 @@ pressureField.data[:] = 0.
 # ##Add Random 125 K temp perturbation
 # 
 
-# In[68]:
+# In[193]:
 
 tempNump = temperatureField.data
 
 #In gerneral we only want to do this on the initial setup, not restarts
+#Takes an input from the ndp dictionary: ndp.random_temp
+
+
 
 if not checkpointLoad:
     for index, coord in enumerate(mesh.data):
-        pertCoeff = (0.05*(np.random.rand(1)[0] - 0.5)) #this should create values between [-0.5,0.5] from uniform dist.
+        pertCoeff = (ndp.random_temp*(np.random.rand(1)[0] - 0.5)) #this should create values between [-0.5,0.5] from uniform dist.
         ict = tempNump[index]
         tempNump[index] = ict + pertCoeff
 
 
 # ##Reset bottom Dirichlet conds.
 
-# In[69]:
+# In[194]:
 
 # Set temp boundaries 
 # on the boundaries
@@ -633,14 +637,14 @@ for index in mesh.specialSets["MaxJ_VertexSet"]:
     temperatureField.data[index] = ndp.TS
 
 
-# In[70]:
+# In[195]:
 
 #temperatureField.evaluate(IWalls).min()
 
 
 # #Particles
 
-# In[71]:
+# In[196]:
 
 ###########
 #Material Swarm and variables
@@ -656,7 +660,7 @@ varlist = [materialVariable, rockIntVar, airIntVar, lithIntVar]
 varnames = ['materialVariable', 'rockIntVar', 'airIntVar', 'lithIntVar']
 
 
-# In[72]:
+# In[197]:
 
 ###########
 #Swarms for surface intragrals when using Sticky air
@@ -681,7 +685,7 @@ dumout = baseintswarm.add_particles_with_coordinates(np.array((xps,yps)).T)
 
 # #Initialise swarm variables, or Swarm checkpoint load
 
-# In[73]:
+# In[198]:
 
 mantleIndex = 0
 lithosphereIndex = 1
@@ -726,7 +730,7 @@ else:
 
 # #Material Graphs
 
-# In[74]:
+# In[199]:
 
 ##############
 #Important: This is a quick fix for a bug that arises in parallel runs
@@ -734,12 +738,12 @@ else:
 material_list = [0,1,2,3]
 
 
-# In[75]:
+# In[200]:
 
 print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.data[:])))
 
 
-# In[76]:
+# In[201]:
 
 
 
@@ -789,12 +793,12 @@ DG[0][2]['depthcondition'] = MANTLETOCRUST
 DG[1][2]['depthcondition'] = MANTLETOCRUST
 
 
-# In[77]:
+# In[202]:
 
 DG.nodes()
 
 
-# In[78]:
+# In[203]:
 
 remove_nodes = []
 for node in DG.nodes():
@@ -805,12 +809,12 @@ for rmnode in remove_nodes:
     DG.remove_node(rmnode)
 
 
-# In[79]:
+# In[204]:
 
 DG.nodes()
 
 
-# In[80]:
+# In[205]:
 
 
 #remove_nodes = []
@@ -822,7 +826,7 @@ DG.nodes()
 #    DG.remove_node(rmnode)
 
 
-# In[81]:
+# In[206]:
 
 #A Dictionary to map strings in the graph (e.g. 'depthcondition') to particle data arrays
 
@@ -837,7 +841,7 @@ conditionmap['avgtempcondition'] = {}
 conditionmap['avgtempcondition']['data'] = particletemps
 
 
-# In[82]:
+# In[207]:
 
 def update_swarm(graph, particleIndex):
     """
