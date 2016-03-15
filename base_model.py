@@ -868,6 +868,11 @@ lithopressuregrad = dp.rho*dp.g*(dp.LS)**3/(dp.eta0*dp.k)
 print(ndp.E, ndp.V,ndp.TS,ndp.RD, ndp.TR, ndp.cohesion)
 
 
+# In[104]:
+
+#ndp.up_visc/ndp.low_visc
+
+
 # In[44]:
 
 ############
@@ -987,7 +992,7 @@ print(solver.options.rhsA11.list())
 print(solver.options.backsolveA11.list())
 
 
-# In[50]:
+# In[100]:
 
 ####################
 #Add the non-linear viscosity to the Stokes system
@@ -995,8 +1000,8 @@ stokesPIC.fn_viscosity = viscosityMapFn
 ###################
 
 #Set more advanced solver option
-#solver.options.main.Q22_pc_type='uw'
-#solver.options.A11.ksp_rtol=1e-3
+solver.options.main.Q22_pc_type='gkgdiag'
+#solver.options.A11.ksp_rtol=1e-2
 #solver.options.scr.ksp_rtol=1e-3
 #solver.options.A11.ksp_type="cg"
 #solver.options.scr.use_previous_guess = True
@@ -1004,9 +1009,19 @@ stokesPIC.fn_viscosity = viscosityMapFn
 #solver.options.main.penalty=10.0
 
 #solver.options.mg.levels = 3
+solver.options.main.remove_constant_pressure_null_space=True
+solver.options.main.penalty = 1e2
 
 solver.options.A11.ksp_monitor=''
 solver.options.A11.ksp_converged_reason=''
+
+
+# In[101]:
+
+print "## Solver Config"
+print solver.options.main.list()
+print "### A11 Config"
+print solver.options.A11.list()
 
 
 # Solve non-linear system for pressure and velocity using Picard iteration
@@ -1314,8 +1329,8 @@ else:
 # initialise timer for computation
 startMain = time.clock()
 # Perform steps
-#while realtime < 0.05:
-while step < 5:
+while realtime < 0.05:
+#while step < 5:
     #Enter non-linear loop
     print step
     solver.solve(nonLinearIterate=True)
