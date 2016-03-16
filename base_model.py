@@ -58,7 +58,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 0
+ModNum = 1
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -1009,8 +1009,8 @@ solver.options.main.Q22_pc_type='gkgdiag'
 #solver.options.main.penalty=10.0
 
 #solver.options.mg.levels = 3
-solver.options.main.remove_constant_pressure_null_space=True
-solver.options.main.penalty = 1e2
+#solver.options.main.remove_constant_pressure_null_space=True
+#solver.options.main.penalty = 1e2
 
 solver.options.A11.ksp_monitor=''
 solver.options.A11.ksp_converged_reason=''
@@ -1329,8 +1329,8 @@ else:
 # initialise timer for computation
 startMain = time.clock()
 # Perform steps
-while realtime < 0.05:
-#while step < 5:
+#while realtime < 0.05:
+while step < 5:
     #Enter non-linear loop
     print step
     solver.solve(nonLinearIterate=True)
