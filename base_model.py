@@ -797,13 +797,13 @@ sub_zone1 = np.array([ ((2*MANTLETOCRUST + 0.5*MANTLETOLITH),1. ), ((-2.*MANTLET
 shape1 = fn.shape.Polygon( sub_zone1)
 
 
-
-for particleID in range( gSwarm.particleCoordinates.data.shape[0] ):
-    if shape1.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
-#        #print "true"
-        materialVariable.data[particleID] = crustIndex
-    #elif shape2.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
-    #    materialVariable.data[particleID] = crustIndex
+if not checkpointLoad:
+    for particleID in range( gSwarm.particleCoordinates.data.shape[0] ):
+        if shape1.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
+    #        #print "true"
+            materialVariable.data[particleID] = crustIndex
+        #elif shape2.evaluate(tuple(gSwarm.particleCoordinates.data[particleID])):
+        #    materialVariable.data[particleID] = crustIndex
 
 
 # In[39]:
@@ -992,7 +992,7 @@ print(solver.options.rhsA11.list())
 print(solver.options.backsolveA11.list())
 
 
-# In[100]:
+# In[ ]:
 
 ####################
 #Add the non-linear viscosity to the Stokes system
@@ -1004,7 +1004,7 @@ solver.options.main.Q22_pc_type='gkgdiag'
 #solver.options.A11.ksp_rtol=1e-2
 #solver.options.scr.ksp_rtol=1e-3
 #solver.options.A11.ksp_type="cg"
-#solver.options.scr.use_previous_guess = True
+solver.options.scr.use_previous_guess = True
 #solver.options.scr.ksp_set_min_it_converge = 1
 #solver.options.main.penalty=10.0
 
@@ -1012,8 +1012,16 @@ solver.options.main.Q22_pc_type='gkgdiag'
 #solver.options.main.remove_constant_pressure_null_space=True
 #solver.options.main.penalty = 1e2
 
+solver.options.A11.ksp_rtol=1e-4
+solver.options.scr.ksp_rtol=1e-4
+
 solver.options.A11.ksp_monitor=''
 solver.options.A11.ksp_converged_reason=''
+
+
+# In[ ]:
+
+
 
 
 # In[101]:
@@ -1329,8 +1337,8 @@ else:
 # initialise timer for computation
 startMain = time.clock()
 # Perform steps
-#while realtime < 0.05:
-while step < 5:
+while realtime < 0.05:
+#while step < 5:
     #Enter non-linear loop
     print step
     solver.solve(nonLinearIterate=True)
