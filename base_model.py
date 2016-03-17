@@ -58,7 +58,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 1
+ModNum = 2
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -227,7 +227,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 96
+RES = 128
 
 if MINX == 0.:
     Xres = RES
@@ -575,7 +575,8 @@ else:
     # Layouts are used to populate the swarm across the whole domain
     # Create the layout object
     #layout = uw.swarm.layouts.GlobalSpaceFillerLayout( swarm=gSwarm, particlesPerCell=20)
-    layout = uw.swarm.layouts.PerCellRandomLayout(swarm=gSwarm, particlesPerCell=15)
+    #layout = uw.swarm.layouts.PerCellRandomLayout(swarm=gSwarm, particlesPerCell=15)
+    layout = uw.swarm.layouts.PerCellRandomLayout(swarm=gSwarm, particlesPerCell=25)
     # Now use it to populate.
     gSwarm.populate_using_layout( layout=layout )
 
@@ -951,14 +952,15 @@ buoyancyFn = gravity*densityMapFn
 # 
 # Setup linear Stokes system to get the initial velocity.
 
-# In[46]:
+# In[106]:
 
 stokesPIC = uw.systems.Stokes( velocityField = velocityField, 
                                pressureField = pressureField,
                                #swarm         = gSwarm, 
                                conditions    = [freeslipBC,],
                                fn_viscosity   = arhennius, 
-                               fn_bodyforce   = buoyancyFn )
+                               fn_bodyforce   = buoyancyFn,
+                               swarm=gSwarm)
 
 
 # In[47]:
