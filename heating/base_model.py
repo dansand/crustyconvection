@@ -58,7 +58,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 0
+ModNum = 1
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -118,7 +118,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
         
 
 
-# In[6]:
+# In[10]:
 
 ###########
 #Physical parameters
@@ -148,7 +148,7 @@ dp = edict({'LS':2890.*1e3,
            'E':240000., 
            'R':8.314,
            'V':6.34*(10**-7),
-           'StALS': 100e3})
+           'StALS': 145e3})
 
 #non-dimensional parameter dictionary
 #One draw back of a dictionary structure, is that variables cannot link to other variables
@@ -156,7 +156,7 @@ RAfac = 1.
 ndp = edict({'RA':1e6*RAfac,      
               'LS':1.,
               'eta0':1.,
-              'StAeta0':5e-3,
+              'StAeta0':1e-3,
               'k':1.,
               'E':11.55,
               'V':3.0,
@@ -205,13 +205,18 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[7]:
+# In[11]:
+
+dp.StALS
+
+
+# In[12]:
 
 ###########
 #Model setup parameters
 ###########
 
-stickyAir = False
+stickyAir = True
 
 MINX = -1.
 MINY = 0.
@@ -247,7 +252,7 @@ else:
     MAXY = 1.
 
 
-periodic = [False, False]
+periodic = [True, False]
 elementType = "Q1/dQ0"
 #elementType ="Q2/DPC1"
 
@@ -259,7 +264,7 @@ refineMesh = True
 PIC_integration=False
 
 
-# In[8]:
+# In[13]:
 
 ###########
 #Model Runtime parameters
@@ -281,7 +286,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[9]:
+# In[14]:
 
 ###########
 #Model output parameters
@@ -292,7 +297,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[10]:
+# In[15]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres), 
@@ -307,19 +312,19 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[11]:
+# In[16]:
 
 print("mesh size", mesh.data.shape, mesh.elementRes)
 
 
-# In[12]:
+# In[17]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim 
 
 
 # ##Refine mesh
 
-# In[13]:
+# In[18]:
 
 #X-Axis
 
@@ -341,7 +346,7 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'x',norm = 'Min', constraints = [])
 
 
-# In[14]:
+# In[19]:
 
 axis = 1
 orgs = np.linspace(mesh.minCoord[axis], mesh.maxCoord[axis], mesh.elementRes[axis] + 1)
@@ -352,7 +357,7 @@ value_to_constrain = 1.
 yconst = [(sp.find_closest(orgs, value_to_constrain), np.array([value_to_constrain,0]))]
 
 
-# In[15]:
+# In[20]:
 
 #Y-Axis
 if refineMesh:
@@ -373,12 +378,12 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'y',norm = 'Min', constraints = yconst)
 
 
-# In[16]:
+# In[21]:
 
-figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
+#figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
 #figMesh.append( glucifer.objects.Mesh(mesh.subMesh, nodeNumbers=True) )
-figMesh.append( glucifer.objects.Mesh(mesh) )
-figMesh.show()
+#figMesh.append( glucifer.objects.Mesh(mesh) )
+#figMesh.show()
 
 
 # # ICs and BCs
@@ -475,7 +480,7 @@ dp.TS/dp.deltaT
 # that these nodes are to be considered as boundary conditions. 
 # Also note that we provide a tuple of sets.. One for the Vx, one for Vy.
 freeslipBC = uw.conditions.DirichletCondition( variable      = velocityField, 
-                                               indexSetsPerDof = (IWalls, JWalls) )
+                                               indexSetsPerDof = (TWalls, JWalls) )
 
 # also set dirichlet for temp field
 dirichTempBC = uw.conditions.DirichletCondition(     variable=temperatureField, 
@@ -927,7 +932,8 @@ ysc = (ndp.cohesion/ndp.cohesion_reduce) + (depth*(ndp.fc/100.)*lithopressuregra
 ycs = fn.misc.max((ndp.cohesion/ndp.cohesion_reduce), ysc)
 crustplasticvisc = ycs*(math.sqrt(2))/(strainRate_2ndInvariant*2.)
 crustplastic = fn.misc.max(ndp.low_visc,crustplasticvisc) 
-crustviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, crustplastic))
+#crustviscosityFn = fn.exception.SafeMaths(fn.misc.min(arhennius, crustplastic))
+crustviscosityFn = fn.exception.SafeMaths(fn.misc.min(1., crustplastic))
 
 
 # Note that the rheology implemented manually above can also be set up using an Underworld2 function, as follows:
