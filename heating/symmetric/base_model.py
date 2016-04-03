@@ -63,7 +63,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 5
+ModNum = 6
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -487,7 +487,7 @@ dp.TS/dp.deltaT
 # that these nodes are to be considered as boundary conditions. 
 # Also note that we provide a tuple of sets.. One for the Vx, one for Vy.
 freeslipBC = uw.conditions.DirichletCondition( variable      = velocityField, 
-                                               indexSetsPerDof = (None, JWalls) )
+                                               indexSetsPerDof = (TWalls, JWalls) )
 
 # also set dirichlet for temp field
 dirichTempBC = uw.conditions.DirichletCondition(     variable=temperatureField, 
