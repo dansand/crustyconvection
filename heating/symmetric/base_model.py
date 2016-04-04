@@ -43,12 +43,12 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[49]:
+# In[2]:
 
 #pwd
 
 
-# In[2]:
+# In[3]:
 
 #Display working directory info if in nb mode
 if (len(sys.argv) > 1):
@@ -57,13 +57,13 @@ if (len(sys.argv) > 1):
         
 
 
-# In[3]:
+# In[4]:
 
 ############
 #Model name.  
 ############
 Model = "T"
-ModNum = 6
+ModNum = 16
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -75,7 +75,7 @@ else:
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*). 
 
-# In[4]:
+# In[5]:
 
 ###########
 #Standard output directory setup
@@ -105,7 +105,7 @@ if uw.rank()==0:
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
 
-# In[5]:
+# In[6]:
 
 ###########
 #Check if starting from checkpoint
@@ -123,7 +123,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
         
 
 
-# In[6]:
+# In[7]:
 
 ###########
 #Physical parameters
@@ -161,7 +161,7 @@ RAfac = 1.
 ndp = edict({'RA':1e6*RAfac,      
               'LS':1.,
               'eta0':1.,
-              'StAeta0':7e-3,
+              'StAeta0':5e-3,
               'k':1.,
               'E':11.55,
               'V':3.0,
@@ -172,8 +172,8 @@ ndp = edict({'RA':1e6*RAfac,
               'cohesion':1577.*RAfac,
               'cohesion_reduce':10.,
               'fc':0.1, 
-              'low_visc':RAfac*1e-4,
-              'up_visc':1e5,
+              'low_visc':RAfac*5e-4,
+              'up_visc':5e4,
               'random_temp': 0.05})
 
 
@@ -212,12 +212,12 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[7]:
+# In[8]:
 
 dp.StALS
 
 
-# In[8]:
+# In[9]:
 
 ###########
 #Model setup parameters
@@ -243,7 +243,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 64
+RES = 96
 
 if MINX == 0.:
     Xres = RES
@@ -259,19 +259,18 @@ else:
     MAXY = 1.
 
 
-periodic = [True, False]
+periodic = [False, False]
 elementType = "Q1/dQ0"
 #elementType ="Q2/DPC1"
 
-refineMesh = False
-
+refineMesh = True
 
 #System/Solver stuff
 
 PIC_integration=False
 
 
-# In[9]:
+# In[10]:
 
 ###########
 #Model Runtime parameters
@@ -293,7 +292,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[10]:
+# In[11]:
 
 ###########
 #Model output parameters
@@ -304,7 +303,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[11]:
+# In[12]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres), 
@@ -319,19 +318,19 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[12]:
+# In[13]:
 
 print("mesh size", mesh.data.shape, mesh.elementRes)
 
 
-# In[13]:
+# In[14]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim 
 
 
 # ##Refine mesh
 
-# In[14]:
+# In[21]:
 
 #X-Axis
 
@@ -343,7 +342,7 @@ if refineMesh:
 
     deform_lengths = edge_rest_lengths.copy()
     min_point =  (abs(mesh.maxCoord[axis]) - abs(mesh.minCoord[axis]))/2.
-    el_reduction = 0.5001
+    el_reduction = 0.6
     dx = mesh.maxCoord[axis] - min_point
 
     deform_lengths = deform_lengths -                                     ((1.-el_reduction) *deform_lengths[0]) +                                     abs((origcoords[1:] - min_point))*((0.5*deform_lengths[0])/dx)
@@ -353,7 +352,7 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'x',norm = 'Min', constraints = [])
 
 
-# In[15]:
+# In[22]:
 
 axis = 1
 orgs = np.linspace(mesh.minCoord[axis], mesh.maxCoord[axis], mesh.elementRes[axis] + 1)
@@ -364,7 +363,7 @@ value_to_constrain = 1.
 yconst = [(sp.find_closest(orgs, value_to_constrain), np.array([value_to_constrain,0]))]
 
 
-# In[16]:
+# In[23]:
 
 #Y-Axis
 if refineMesh:
@@ -375,7 +374,7 @@ if refineMesh:
 
     deform_lengths = edge_rest_lengths.copy()
     min_point =  (mesh.maxCoord[axis])
-    el_reduction = 0.5
+    el_reduction = 0.6
     dx = mesh.maxCoord[axis]
 
     deform_lengths = deform_lengths -                                     ((1.-el_reduction)*deform_lengths[0]) +                                     abs((origcoords[1:] - min_point))*((0.5*deform_lengths[0])/dx)
@@ -385,17 +384,17 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'y',norm = 'Min', constraints = yconst)
 
 
-# In[17]:
+# In[24]:
 
-#figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
+figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
 #figMesh.append( glucifer.objects.Mesh(mesh.subMesh, nodeNumbers=True) )
-#figMesh.append( glucifer.objects.Mesh(mesh) )
-#figMesh.show()
+figMesh.append( glucifer.objects.Mesh(mesh) )
+figMesh.show()
 
 
 # # ICs and BCs
 
-# In[18]:
+# In[19]:
 
 # Get the actual sets 
 #
@@ -487,7 +486,7 @@ dp.TS/dp.deltaT
 # that these nodes are to be considered as boundary conditions. 
 # Also note that we provide a tuple of sets.. One for the Vx, one for Vy.
 freeslipBC = uw.conditions.DirichletCondition( variable      = velocityField, 
-                                               indexSetsPerDof = (TWalls, JWalls) )
+                                               indexSetsPerDof = (IWalls, JWalls) )
 
 # also set dirichlet for temp field
 dirichTempBC = uw.conditions.DirichletCondition(     variable=temperatureField, 
@@ -648,9 +647,7 @@ print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.
 
 # In[32]:
 
-
-
-#All depth conditions are given as (km/D) where D is the length scale, 
+#All depth conditions are given as (km/D) where D is the length scale,
 #note that 'model depths' are used, e.g. 1-z, where z is the vertical Underworld coordinate
 #All temp conditions are in dimensionless temp. [0. - 1.]
 
@@ -658,7 +655,7 @@ print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.
 DG = nx.DiGraph(field="Depth")
 
 #######Nodes
-#Note that the order of materials, deepest to shallowest is important 
+#Note that the order of materials, deepest to shallowest is important
 DG.add_node(0, mat='mantle')
 DG.add_node(1, mat='lithosphere')
 DG.add_node(2, mat='crust')
@@ -666,7 +663,7 @@ DG.add_node(3, mat='air')
 
 
 labels=dict((n,d['mat']) for n,d in DG.nodes(data=True))
-pos=nx.spring_layout(DG) 
+pos=nx.spring_layout(DG)
 
 
 #######Edges
@@ -678,8 +675,7 @@ DG[2][3]['depthcondition'] = -1*TOPOHEIGHT
 
 
 #Anything to mantle
-DG.add_edges_from([(2,0), (3,0), (1,0)])
-DG[3][0]['depthcondition'] = TOPOHEIGHT
+DG.add_edges_from([(2,0), (1,0)])
 DG[2][0]['depthcondition'] = CRUSTTOMANTLE
 DG[1][0]['depthcondition'] = LITHTOMANTLE #This means we're going to kill lithosphere at the 660.
 
@@ -691,9 +687,10 @@ DG[0][1]['avgtempcondition'] = 0.75*AVGTEMP #definition of thermal lithosphere
 
 
 #Anything to crust
-DG.add_edges_from([(0,2), (1,2)])
+DG.add_edges_from([(0,2), (1,2), (3,2)])
 DG[0][2]['depthcondition'] = MANTLETOCRUST
 DG[1][2]['depthcondition'] = MANTLETOCRUST
+DG[3][2]['depthcondition'] = TOPOHEIGHT
 
 
 # In[33]:
