@@ -626,9 +626,7 @@ print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.
 
 # In[30]:
 
-
-
-#All depth conditions are given as (km/D) where D is the length scale, 
+#All depth conditions are given as (km/D) where D is the length scale,
 #note that 'model depths' are used, e.g. 1-z, where z is the vertical Underworld coordinate
 #All temp conditions are in dimensionless temp. [0. - 1.]
 
@@ -636,7 +634,7 @@ print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.
 DG = nx.DiGraph(field="Depth")
 
 #######Nodes
-#Note that the order of materials, deepest to shallowest is important 
+#Note that the order of materials, deepest to shallowest is important
 DG.add_node(0, mat='mantle')
 DG.add_node(1, mat='lithosphere')
 DG.add_node(2, mat='crust')
@@ -644,7 +642,7 @@ DG.add_node(3, mat='air')
 
 
 labels=dict((n,d['mat']) for n,d in DG.nodes(data=True))
-pos=nx.spring_layout(DG) 
+pos=nx.spring_layout(DG)
 
 
 #######Edges
@@ -656,8 +654,7 @@ DG[2][3]['depthcondition'] = -1*TOPOHEIGHT
 
 
 #Anything to mantle
-DG.add_edges_from([(2,0), (3,0), (1,0)])
-DG[3][0]['depthcondition'] = TOPOHEIGHT
+DG.add_edges_from([(2,0), (1,0)])
 DG[2][0]['depthcondition'] = CRUSTTOMANTLE
 DG[1][0]['depthcondition'] = LITHTOMANTLE #This means we're going to kill lithosphere at the 660.
 
@@ -669,9 +666,10 @@ DG[0][1]['avgtempcondition'] = 0.75*AVGTEMP #definition of thermal lithosphere
 
 
 #Anything to crust
-DG.add_edges_from([(0,2), (1,2)])
+DG.add_edges_from([(0,2), (1,2), (3,2)])
 DG[0][2]['depthcondition'] = MANTLETOCRUST
 DG[1][2]['depthcondition'] = MANTLETOCRUST
+DG[3][2]['depthcondition'] = TOPOHEIGHT
 
 
 # In[31]:

@@ -63,7 +63,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 16
+ModNum = 18
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -161,7 +161,7 @@ RAfac = 1.
 ndp = edict({'RA':1e6*RAfac,      
               'LS':1.,
               'eta0':1.,
-              'StAeta0':5e-3,
+              'StAeta0':1e-3,
               'k':1.,
               'E':11.55,
               'V':3.0,
@@ -184,14 +184,14 @@ MANTLETOCRUST = (27.*1e3)/dp.LS #Crust depth
 CRUSTTOMANTLE = (300.*1e3)/dp.LS 
 LITHTOMANTLE = (660.*1e3)/dp.LS 
 MANTLETOLITH = (200.*1e3)/dp.LS 
-TOPOHEIGHT = (0.*1e3)/dp.LS  #rock-air topography limits
+TOPOHEIGHT = (20.*1e3)/dp.LS  #rock-air topography limits
 AVGTEMP = 0.53 #Used to define lithosphere
 
 
 #Compositional Rayliegh number of rock-air
 ETAREF = dp.rho*dp.g*dp.a*dp.deltaT*((dp.LS)**3)/(ndp.RA*dp.k) #equivalent dimensional reference viscosity
-#RC = (3300.*dp.g*(dp.LS)**3)/(ETAREF *dp.k) #Composisitional Rayleigh number for rock-air buoyancy force
-RC = (1650.*dp.g*(dp.LS)**3)/(ETAREF *dp.k) #Composisitional Rayleigh number for rock-air buoyancy force
+RC = (3300.*dp.g*(dp.LS)**3)/(ETAREF *dp.k) #Composisitional Rayleigh number for rock-air buoyancy force
+#RC = (1650.*dp.g*(dp.LS)**3)/(ETAREF *dp.k) #Composisitional Rayleigh number for rock-air buoyancy force
 
 COMP_RA_FACT = RC/ndp.RA
 
