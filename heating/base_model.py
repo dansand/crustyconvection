@@ -45,6 +45,11 @@ rank = comm.Get_rank()
 
 # In[2]:
 
+#pwd
+
+
+# In[3]:
+
 #Display working directory info if in nb mode
 if (len(sys.argv) > 1):
     if (sys.argv[1] == '-f'):
@@ -52,13 +57,13 @@ if (len(sys.argv) > 1):
 
 
 
-# In[3]:
+# In[4]:
 
 ############
 #Model name.
 ############
 Model = "T"
-ModNum = 2
+ModNum = 3
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -70,7 +75,7 @@ else:
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*).
 
-# In[4]:
+# In[5]:
 
 ###########
 #Standard output directory setup
@@ -100,7 +105,7 @@ if uw.rank()==0:
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early
 
 
-# In[5]:
+# In[6]:
 
 ###########
 #Check if starting from checkpoint
@@ -118,7 +123,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
 
 
 
-# In[10]:
+# In[7]:
 
 ###########
 #Physical parameters
@@ -156,7 +161,7 @@ RAfac = 1.
 ndp = edict({'RA':1e6*RAfac,
               'LS':1.,
               'eta0':1.,
-              'StAeta0':1e-3,
+              'StAeta0':5e-3,
               'k':1.,
               'E':11.55,
               'V':3.0,
@@ -167,24 +172,26 @@ ndp = edict({'RA':1e6*RAfac,
               'cohesion':1577.*RAfac,
               'cohesion_reduce':10.,
               'fc':0.1,
-              'low_visc':RAfac*1e-4,
-              'up_visc':1e5,
+              'low_visc':RAfac*5e-4,
+              'up_visc':5e4,
               'random_temp': 0.05})
 
 
 #A few parameters defining lengths scales, affects materal transistions etc.
-MANTLETOCRUST = (18.*1e3)/dp.LS #Crust depth
+#MANTLETOCRUST = (18.*1e3)/dp.LS #Crust depth
+MANTLETOCRUST = (27.*1e3)/dp.LS #Crust depth
+
 CRUSTTOMANTLE = (300.*1e3)/dp.LS
 LITHTOMANTLE = (660.*1e3)/dp.LS
 MANTLETOLITH = (200.*1e3)/dp.LS
-TOPOHEIGHT = (0.*1e3)/dp.LS  #rock-air topography limits
+TOPOHEIGHT = (20.*1e3)/dp.LS  #rock-air topography limits
 AVGTEMP = 0.53 #Used to define lithosphere
 
 
 #Compositional Rayliegh number of rock-air
 ETAREF = dp.rho*dp.g*dp.a*dp.deltaT*((dp.LS)**3)/(ndp.RA*dp.k) #equivalent dimensional reference viscosity
-#RC = (3300.*dp.g*(dp.LS)**3)/(ETAREF *dp.k) #Composisitional Rayleigh number for rock-air buoyancy force
-RC = (1650.*dp.g*(dp.LS)**3)/(ETAREF *dp.k) #Composisitional Rayleigh number for rock-air buoyancy force
+RC = (3300.*dp.g*(dp.LS)**3)/(ETAREF *dp.k) #Composisitional Rayleigh number for rock-air buoyancy force
+#RC = (1650.*dp.g*(dp.LS)**3)/(ETAREF *dp.k) #Composisitional Rayleigh number for rock-air buoyancy force
 
 COMP_RA_FACT = RC/ndp.RA
 
@@ -205,18 +212,18 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[11]:
+# In[8]:
 
 dp.StALS
 
 
-# In[12]:
+# In[9]:
 
 ###########
 #Model setup parameters
 ###########
 
-stickyAir = True
+stickyAir = False
 
 MINX = -1.
 MINY = 0.
@@ -236,7 +243,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 128
+RES = 64
 
 if MINX == 0.:
     Xres = RES
@@ -252,19 +259,18 @@ else:
     MAXY = 1.
 
 
-periodic = [True, False]
+periodic = [False, False]
 elementType = "Q1/dQ0"
 #elementType ="Q2/DPC1"
 
-refineMesh = False
-
+refineMesh = True
 
 #System/Solver stuff
 
 PIC_integration=False
 
 
-# In[13]:
+# In[10]:
 
 ###########
 #Model Runtime parameters
@@ -286,7 +292,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[14]:
+# In[11]:
 
 ###########
 #Model output parameters
@@ -297,7 +303,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[15]:
+# In[12]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres),
@@ -312,19 +318,19 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[16]:
+# In[13]:
 
 print("mesh size", mesh.data.shape, mesh.elementRes)
 
 
-# In[17]:
+# In[14]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim
 
 
 # ##Refine mesh
 
-# In[18]:
+# In[21]:
 
 #X-Axis
 
@@ -336,7 +342,7 @@ if refineMesh:
 
     deform_lengths = edge_rest_lengths.copy()
     min_point =  (abs(mesh.maxCoord[axis]) - abs(mesh.minCoord[axis]))/2.
-    el_reduction = 0.5001
+    el_reduction = 0.6
     dx = mesh.maxCoord[axis] - min_point
 
     deform_lengths = deform_lengths -                                     ((1.-el_reduction) *deform_lengths[0]) +                                     abs((origcoords[1:] - min_point))*((0.5*deform_lengths[0])/dx)
@@ -346,7 +352,7 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'x',norm = 'Min', constraints = [])
 
 
-# In[19]:
+# In[22]:
 
 axis = 1
 orgs = np.linspace(mesh.minCoord[axis], mesh.maxCoord[axis], mesh.elementRes[axis] + 1)
@@ -357,7 +363,7 @@ value_to_constrain = 1.
 yconst = [(sp.find_closest(orgs, value_to_constrain), np.array([value_to_constrain,0]))]
 
 
-# In[20]:
+# In[23]:
 
 #Y-Axis
 if refineMesh:
@@ -368,7 +374,7 @@ if refineMesh:
 
     deform_lengths = edge_rest_lengths.copy()
     min_point =  (mesh.maxCoord[axis])
-    el_reduction = 0.5
+    el_reduction = 0.6
     dx = mesh.maxCoord[axis]
 
     deform_lengths = deform_lengths -                                     ((1.-el_reduction)*deform_lengths[0]) +                                     abs((origcoords[1:] - min_point))*((0.5*deform_lengths[0])/dx)
@@ -378,17 +384,17 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'y',norm = 'Min', constraints = yconst)
 
 
-# In[21]:
+# In[24]:
 
-#figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
+figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
 #figMesh.append( glucifer.objects.Mesh(mesh.subMesh, nodeNumbers=True) )
-#figMesh.append( glucifer.objects.Mesh(mesh) )
-#figMesh.show()
+figMesh.append( glucifer.objects.Mesh(mesh) )
+figMesh.show()
 
 
 # # ICs and BCs
 
-# In[17]:
+# In[19]:
 
 # Get the actual sets
 #
@@ -409,7 +415,7 @@ BWalls = mesh.specialSets["MinJ_VertexSet"]
 AWalls = IWalls + JWalls
 
 
-# In[18]:
+# In[19]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
@@ -431,7 +437,7 @@ def tempf(z,w,t0=0.64):
 
 
 
-# In[19]:
+# In[20]:
 
 age_asymmetry = 2.
 
@@ -462,25 +468,25 @@ for index, coord in enumerate(mesh.data):
         temperatureField.data[index] = dp.TS/dp.deltaT
 
 
-# In[20]:
+# In[21]:
 
 dp.TS/dp.deltaT
 
 
-# In[21]:
+# In[22]:
 
 #For notebook runs
 #ModIt = "96"
 
 
-# In[22]:
+# In[23]:
 
 # Now setup the dirichlet boundary condition
 # Note that through this object, we are flagging to the system
 # that these nodes are to be considered as boundary conditions.
 # Also note that we provide a tuple of sets.. One for the Vx, one for Vy.
 freeslipBC = uw.conditions.DirichletCondition( variable      = velocityField,
-                                               indexSetsPerDof = (TWalls, JWalls) )
+                                               indexSetsPerDof = (IWalls, JWalls) )
 
 # also set dirichlet for temp field
 dirichTempBC = uw.conditions.DirichletCondition(     variable=temperatureField,
@@ -504,7 +510,7 @@ pressureField.data[:] = 0.
 # ##Add Random 125 K temp perturbation
 #
 
-# In[23]:
+# In[24]:
 
 tempNump = temperatureField.data
 
@@ -522,7 +528,7 @@ if not checkpointLoad:
 
 # ##Reset bottom Dirichlet conds.
 
-# In[24]:
+# In[25]:
 
 # Set temp boundaries
 # on the boundaries
@@ -532,14 +538,14 @@ for index in mesh.specialSets["MaxJ_VertexSet"]:
     temperatureField.data[index] = ndp.TS
 
 
-# In[25]:
+# In[26]:
 
 #temperatureField.evaluate(IWalls).min()
 
 
 # #Particles
 
-# In[26]:
+# In[27]:
 
 ###########
 #Material Swarm and variables
@@ -555,7 +561,7 @@ varlist = [materialVariable, rockIntVar, airIntVar, lithIntVar]
 varnames = ['materialVariable', 'rockIntVar', 'airIntVar', 'lithIntVar']
 
 
-# In[27]:
+# In[28]:
 
 ###########
 #Swarms for surface intragrals when using Sticky air
@@ -580,7 +586,7 @@ dumout = baseintswarm.add_particles_with_coordinates(np.array((xps,yps)).T)
 
 # #Initialise swarm variables, or Swarm checkpoint load
 
-# In[28]:
+# In[29]:
 
 mantleIndex = 0
 lithosphereIndex = 1
@@ -626,7 +632,7 @@ else:
 
 # #Material Graphs
 
-# In[29]:
+# In[30]:
 
 ##############
 #Important: This is a quick fix for a bug that arises in parallel runs
@@ -634,14 +640,12 @@ else:
 material_list = [0,1,2,3]
 
 
-# In[30]:
+# In[31]:
 
 print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.data[:])))
 
 
-# In[31]:
-
-
+# In[32]:
 
 #All depth conditions are given as (km/D) where D is the length scale,
 #note that 'model depths' are used, e.g. 1-z, where z is the vertical Underworld coordinate
@@ -671,8 +675,7 @@ DG[2][3]['depthcondition'] = -1*TOPOHEIGHT
 
 
 #Anything to mantle
-DG.add_edges_from([(2,0), (3,0), (1,0)])
-DG[3][0]['depthcondition'] = TOPOHEIGHT
+DG.add_edges_from([(2,0), (1,0)])
 DG[2][0]['depthcondition'] = CRUSTTOMANTLE
 DG[1][0]['depthcondition'] = LITHTOMANTLE #This means we're going to kill lithosphere at the 660.
 
@@ -684,17 +687,18 @@ DG[0][1]['avgtempcondition'] = 0.75*AVGTEMP #definition of thermal lithosphere
 
 
 #Anything to crust
-DG.add_edges_from([(0,2), (1,2)])
+DG.add_edges_from([(0,2), (1,2), (3,2)])
 DG[0][2]['depthcondition'] = MANTLETOCRUST
 DG[1][2]['depthcondition'] = MANTLETOCRUST
+DG[3][2]['depthcondition'] = TOPOHEIGHT
 
 
-# In[32]:
+# In[33]:
 
 DG.nodes()
 
 
-# In[33]:
+# In[34]:
 
 remove_nodes = []
 for node in DG.nodes():
@@ -705,12 +709,12 @@ for rmnode in remove_nodes:
     DG.remove_node(rmnode)
 
 
-# In[34]:
+# In[35]:
 
 DG.nodes()
 
 
-# In[35]:
+# In[36]:
 
 
 #remove_nodes = []
@@ -722,7 +726,7 @@ DG.nodes()
 #    DG.remove_node(rmnode)
 
 
-# In[36]:
+# In[37]:
 
 #A Dictionary to map strings in the graph (e.g. 'depthcondition') to particle data arrays
 
@@ -737,7 +741,7 @@ conditionmap['avgtempcondition'] = {}
 conditionmap['avgtempcondition']['data'] = particletemps
 
 
-# In[37]:
+# In[38]:
 
 def update_swarm(graph, particleIndex):
     """
@@ -786,12 +790,12 @@ def update_swarm(graph, particleIndex):
         return innerchange
 
 
-# In[38]:
+# In[39]:
 
 #fn.branching.conditional?
 
 
-# In[39]:
+# In[40]:
 
 #Cleanse the swarm of its sins
 #For some Material Graphs, the graph may have to be treaversed more than once
@@ -808,7 +812,7 @@ while number_updated != 0:
                     materialVariable.data[particleID] = check
 
 
-# In[40]:
+# In[42]:
 
 ## Here we'll play around with some different crust-perturbations
 ##Voul inlude this is the Graph update function, but for now keep it seperate
@@ -835,12 +839,7 @@ if not checkpointLoad:
         #    materialVariable.data[particleID] = crustIndex
 
 
-# In[41]:
-
-#shape.evaluate(
-
-
-# In[42]:
+# In[43]:
 
 figSwarm = glucifer.Figure(figsize=(1024,384))
 figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
@@ -852,7 +851,7 @@ figSwarm.show()
 
 # ## Set the values for the masking swarms
 
-# In[43]:
+# In[ ]:
 
 #Setup up a masking Swarm variable for the integrations.
 #These should be rebuilt at same frequency as the metric calcualtions
@@ -1028,7 +1027,7 @@ stokesPIC.fn_viscosity = viscosityMapFn
 ###################
 
 #Set more advanced solver option
-solver.options.main.Q22_pc_type='gkgdiag'
+#solver.options.main.Q22_pc_type='gkgdiag'
 #solver.options.A11.ksp_rtol=1e-2
 #solver.options.scr.ksp_rtol=1e-3
 #solver.options.A11.ksp_type="cg"
@@ -1036,12 +1035,12 @@ solver.options.scr.use_previous_guess = True
 #solver.options.scr.ksp_set_min_it_converge = 1
 #solver.options.main.penalty=10.0
 
-#solver.options.mg.levels = 3
+solver.options.mg.levels = 3
 #solver.options.main.remove_constant_pressure_null_space=True
 #solver.options.main.penalty = 1e2
 
-solver.options.A11.ksp_rtol=1e-4
-solver.options.scr.ksp_rtol=1e-4
+#solver.options.A11.ksp_rtol=1e-4
+#solver.options.scr.ksp_rtol=1e-4
 
 solver.options.A11.ksp_monitor=''
 solver.options.A11.ksp_converged_reason=''
