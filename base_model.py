@@ -20,7 +20,7 @@
 
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
-# In[1]:
+# In[19]:
 
 import networkx as nx
 import underworld as uw
@@ -43,7 +43,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[2]:
+# In[20]:
 
 #Display working directory info if in nb mode
 if (len(sys.argv) > 1):
@@ -52,13 +52,13 @@ if (len(sys.argv) > 1):
         
 
 
-# In[3]:
+# In[21]:
 
 ############
 #Model name.  
 ############
 Model = "T"
-ModNum = 4
+ModNum = 6
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -70,7 +70,7 @@ else:
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*). 
 
-# In[4]:
+# In[22]:
 
 ###########
 #Standard output directory setup
@@ -100,7 +100,7 @@ if uw.rank()==0:
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
 
-# In[5]:
+# In[23]:
 
 ###########
 #Check if starting from checkpoint
@@ -118,7 +118,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
         
 
 
-# In[6]:
+# In[199]:
 
 ###########
 #Physical parameters
@@ -148,15 +148,16 @@ dp = edict({'LS':2890.*1e3,
            'E':240000., 
            'R':8.314,
            'V':6.34*(10**-7),
-           'StALS': 100e3})
+           'StALS': 27*1e3})
 
 #non-dimensional parameter dictionary
 #One draw back of a dictionary structure, is that variables cannot link to other variables
-RAfac = 1.
+RAfac = 20.
+Stressfac =(0.3*RAfac**(2/3.))
 ndp = edict({'RA':1e6*RAfac,      
               'LS':1.,
               'eta0':1.,
-              'StAeta0':5e-3,
+              'StAeta0':0.1,
               'k':1.,
               'E':11.55,
               'V':3.0,
@@ -173,7 +174,7 @@ ndp = edict({'RA':1e6*RAfac,
 
 
 #A few parameters defining lengths scales, affects materal transistions etc.
-MANTLETOCRUST = (18.*1e3)/dp.LS #Crust depth
+MANTLETOCRUST = (27.*1e3)/dp.LS #Crust depth
 CRUSTTOMANTLE = (300.*1e3)/dp.LS 
 LITHTOMANTLE = (660.*1e3)/dp.LS 
 MANTLETOLITH = (200.*1e3)/dp.LS 
@@ -205,7 +206,12 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[7]:
+# In[201]:
+
+
+
+
+# In[25]:
 
 ###########
 #Model setup parameters
@@ -231,7 +237,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 64
+RES = 96
 
 if MINX == 0.:
     Xres = RES
@@ -259,7 +265,7 @@ refineMesh = True
 PIC_integration=False
 
 
-# In[8]:
+# In[26]:
 
 ###########
 #Model Runtime parameters
@@ -281,7 +287,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[9]:
+# In[27]:
 
 ###########
 #Model output parameters
@@ -292,7 +298,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[10]:
+# In[28]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres), 
@@ -307,19 +313,19 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[11]:
+# In[29]:
 
 print("mesh size", mesh.data.shape, mesh.elementRes)
 
 
-# In[12]:
+# In[30]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim 
 
 
 # ##Refine mesh
 
-# In[13]:
+# In[31]:
 
 #X-Axis
 
@@ -341,7 +347,7 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'x',norm = 'Min', constraints = [])
 
 
-# In[14]:
+# In[32]:
 
 axis = 1
 orgs = np.linspace(mesh.minCoord[axis], mesh.maxCoord[axis], mesh.elementRes[axis] + 1)
@@ -352,7 +358,7 @@ value_to_constrain = 1.
 yconst = [(sp.find_closest(orgs, value_to_constrain), np.array([value_to_constrain,0]))]
 
 
-# In[15]:
+# In[33]:
 
 #Y-Axis
 if refineMesh:
@@ -373,7 +379,7 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'y',norm = 'Min', constraints = yconst)
 
 
-# In[16]:
+# In[34]:
 
 figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
 #figMesh.append( glucifer.objects.Mesh(mesh.subMesh, nodeNumbers=True) )
@@ -383,7 +389,7 @@ figMesh.show()
 
 # # ICs and BCs
 
-# In[17]:
+# In[185]:
 
 # Get the actual sets 
 #
@@ -404,7 +410,7 @@ BWalls = mesh.specialSets["MinJ_VertexSet"]
 AWalls = IWalls + JWalls
 
 
-# In[18]:
+# In[186]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
@@ -426,7 +432,7 @@ def tempf(z,w,t0=0.64):
 
 
 
-# In[19]:
+# In[187]:
 
 age_asymmetry = 2.
 
@@ -457,13 +463,13 @@ for index, coord in enumerate(mesh.data):
         temperatureField.data[index] = 0.
 
 
-# In[20]:
+# In[188]:
 
 #For notebook runs
 #ModIt = "96"
 
 
-# In[21]:
+# In[189]:
 
 # Now setup the dirichlet boundary condition
 # Note that through this object, we are flagging to the system 
@@ -489,25 +495,22 @@ pressureField.data[:] = 0.
 # ##Add Random 125 K temp perturbation
 # 
 
-# In[22]:
+# In[190]:
 
+# Setup temperature initial condition via numpy arrays
+A = 0.05
+#Note that width = height = 1
 tempNump = temperatureField.data
-
-#In gerneral we only want to do this on the initial setup, not restarts
-#Takes an input from the ndp dictionary: ndp.random_temp
-
-
-
-if not checkpointLoad:
-    for index, coord in enumerate(mesh.data):
-        pertCoeff = (ndp.random_temp*(np.random.rand(1)[0] - 0.5)) #this should create values between [-0.5,0.5] from uniform dist.
-        ict = tempNump[index]
-        tempNump[index] = ict + pertCoeff
+for index, coord in enumerate(mesh.data):
+    pertCoeff = temperatureField.data[index] + A*(1. - coord[1])*(1 - math.cos( math.pi/2. * (coord[0] + 1.)))
+    temperatureField.data[index] = pertCoeff;
+    if coord[1] > 1:
+        tempNump[index] = 0.
 
 
 # ##Reset bottom Dirichlet conds.
 
-# In[23]:
+# In[191]:
 
 # Set temp boundaries 
 # on the boundaries
@@ -517,14 +520,21 @@ for index in mesh.specialSets["MaxJ_VertexSet"]:
     temperatureField.data[index] = ndp.TS
 
 
-# In[24]:
+# In[192]:
 
 #temperatureField.evaluate(IWalls).min()
 
 
+# In[193]:
+
+figVelocityMag = glucifer.Figure(figsize=(1024,384))
+figVelocityMag.append( glucifer.objects.Surface(mesh, temperatureField) )
+figVelocityMag.show()
+
+
 # #Particles
 
-# In[25]:
+# In[43]:
 
 ###########
 #Material Swarm and variables
@@ -1088,9 +1098,10 @@ fn_minmax_inv.max_global()
 
 advDiff = uw.systems.AdvectionDiffusion( phiField       = temperatureField, 
                                          phiDotField    = temperatureDotField, 
-                                         velocityField  = velocityField, 
+                                         velocityField  = velocityField,
+                                         fn_sourceTerm    = 0.0,
                                          fn_diffusivity = 1.0, 
-                                         conditions     = [tempBC,] )
+                                         conditions     = [tempBC, ] )
 
 
 
