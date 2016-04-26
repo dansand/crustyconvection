@@ -179,7 +179,7 @@ ndp = edict({'RA':1e6*RAfac,
 
 #A few parameters defining lengths scales, affects materal transistions etc.
 #MANTLETOCRUST = (18.*1e3)/dp.LS #Crust depth
-MANTLETOCRUST = (27.*1e3)/dp.LS #Crust depth
+MANTLETOCRUST = (24.*1e3)/dp.LS #Crust depth
 
 CRUSTTOMANTLE = (900.*1e3)/dp.LS 
 LITHTOMANTLE = (900.*1e3)/dp.LS 
@@ -238,7 +238,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 256
+RES = 192
 
 if MINX == 0.:
     Xres = RES
