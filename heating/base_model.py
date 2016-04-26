@@ -63,7 +63,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 5
+ModNum = 6
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -161,7 +161,7 @@ RAfac = 1.
 ndp = edict({'RA':1e6*RAfac,      
               'LS':1.,
               'eta0':1.,
-              'StAeta0':0.1,
+              'StAeta0':0.01,
               'k':1.,
               'E':11.55,
               'V':3.0,
@@ -177,7 +177,7 @@ ndp = edict({'RA':1e6*RAfac,
               'random_temp': 0.05})
 
 
-#A few parameters defining lengths scales, affects materal transistions etc.
+#A few parameters defining lengths scales, affects material transistions etc.
 #MANTLETOCRUST = (18.*1e3)/dp.LS #Crust depth
 MANTLETOCRUST = (27.*1e3)/dp.LS #Crust depth
 
@@ -279,7 +279,7 @@ PIC_integration=False
 swarm_update = 25
 swarm_repop = 25
 files_output = 1e6
-gldbs_output = 25
+gldbs_output = 10
 images_output = 1e6
 checkpoint_every = 25
 metric_output = 25
@@ -486,7 +486,7 @@ dp.TS/dp.deltaT
 # that these nodes are to be considered as boundary conditions. 
 # Also note that we provide a tuple of sets.. One for the Vx, one for Vy.
 freeslipBC = uw.conditions.DirichletCondition( variable      = velocityField, 
-                                               indexSetsPerDof = (IWalls, JWalls) )
+                                               indexSetsPerDof = (TWalls, JWalls) )
 
 # also set dirichlet for temp field
 dirichTempBC = uw.conditions.DirichletCondition(     variable=temperatureField, 
@@ -1040,7 +1040,7 @@ stokesPIC.fn_viscosity = viscosityMapFn
 ###################
 
 #Set more advanced solver option
-#solver.options.main.Q22_pc_type='gkgdiag'
+solver.options.main.Q22_pc_type='gkgdiag'
 #solver.options.A11.ksp_rtol=1e-2
 #solver.options.scr.ksp_rtol=1e-3
 #solver.options.A11.ksp_type="cg"
@@ -1048,12 +1048,12 @@ solver.options.scr.use_previous_guess = True
 #solver.options.scr.ksp_set_min_it_converge = 1
 #solver.options.main.penalty=10.0
 
-solver.options.mg.levels = 3
+#solver.options.mg.levels = 3
 #solver.options.main.remove_constant_pressure_null_space=True
 #solver.options.main.penalty = 1e2
 
-#solver.options.A11.ksp_rtol=1e-4
-#solver.options.scr.ksp_rtol=1e-4
+solver.options.A11.ksp_rtol=1e-4
+solver.options.scr.ksp_rtol=1e-4
 
 solver.options.A11.ksp_monitor=''
 solver.options.A11.ksp_converged_reason=''

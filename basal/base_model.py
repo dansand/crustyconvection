@@ -58,7 +58,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 6
+ModNum = 12
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -148,16 +148,16 @@ dp = edict({'LS':2890.*1e3,
            'E':240000., 
            'R':8.314,
            'V':6.34*(10**-7),
-           'StALS': 27*1e3})
+           'StALS': 54*1e3})
 
 #non-dimensional parameter dictionary
 #One draw back of a dictionary structure, is that variables cannot link to other variables
-RAfac = 20.
+RAfac = 16.
 Stressfac =(0.3*RAfac**(2/3.))
 ndp = edict({'RA':1e6*RAfac,      
               'LS':1.,
               'eta0':1.,
-              'StAeta0':0.1,
+              'StAeta0':0.01,
               'k':1.,
               'E':11.55,
               'V':3.0,
@@ -237,7 +237,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 96
+RES = 64
 
 if MINX == 0.:
     Xres = RES
@@ -271,18 +271,18 @@ PIC_integration=False
 #Model Runtime parameters
 ###########
 
-swarm_update = 25
-swarm_repop = 25
+swarm_update = 10
+swarm_repop = 10
 files_output = 1e6
-gldbs_output = 25
+gldbs_output = 5
 images_output = 1e6
-checkpoint_every = 25
-metric_output = 25
+checkpoint_every = 1e6
+metric_output = 1e6
 sticky_air_temp = 10
 
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
-assert metric_output <= checkpoint_every, 'Checkpointing should run less or as ofen as metric output'
+#assert metric_output <= checkpoint_every, 'Checkpointing should run less or as ofen as metric output'
 assert (metric_output >= swarm_update), 'Swarm update is needed before checkpointing'
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
@@ -376,7 +376,7 @@ if refineMesh:
 
     #print(edge_rest_lengths.shape, deform_lengths.shape)
 
-    sp.deform_1d(deform_lengths, mesh,axis = 'y',norm = 'Min', constraints = yconst)
+    sp.deform_1d(deform_lengths, mesh,axis = 'y',norm = 'Min', constraints = [])
 
 
 # In[34]:

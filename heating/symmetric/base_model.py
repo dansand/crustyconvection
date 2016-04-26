@@ -20,7 +20,7 @@
 
 # Load python functions needed for underworld. Some additional python functions from os, math and numpy used later on.
 
-# In[1]:
+# In[302]:
 
 import networkx as nx
 import underworld as uw
@@ -43,12 +43,12 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[2]:
+# In[303]:
 
 #pwd
 
 
-# In[3]:
+# In[304]:
 
 #Display working directory info if in nb mode
 if (len(sys.argv) > 1):
@@ -57,13 +57,13 @@ if (len(sys.argv) > 1):
         
 
 
-# In[4]:
+# In[305]:
 
 ############
 #Model name.  
 ############
 Model = "T"
-ModNum = 18
+ModNum = 0
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -75,7 +75,7 @@ else:
 
 # Set physical constants and parameters, including the Rayleigh number (*RA*). 
 
-# In[5]:
+# In[306]:
 
 ###########
 #Standard output directory setup
@@ -105,7 +105,7 @@ if uw.rank()==0:
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
 
-# In[6]:
+# In[307]:
 
 ###########
 #Check if starting from checkpoint
@@ -123,7 +123,7 @@ for dirpath, dirnames, files in os.walk(checkpointPath):
         
 
 
-# In[7]:
+# In[308]:
 
 ###########
 #Physical parameters
@@ -153,7 +153,7 @@ dp = edict({'LS':2890.*1e3,
            'E':240000., 
            'R':8.314,
            'V':6.34*(10**-7),
-           'StALS': 145e3})
+           'StALS': 150e3})
 
 #non-dimensional parameter dictionary
 #One draw back of a dictionary structure, is that variables cannot link to other variables
@@ -161,7 +161,7 @@ RAfac = 1.
 ndp = edict({'RA':1e6*RAfac,      
               'LS':1.,
               'eta0':1.,
-              'StAeta0':1e-3,
+              'StAeta0':0.01,
               'k':1.,
               'E':11.55,
               'V':3.0,
@@ -181,8 +181,8 @@ ndp = edict({'RA':1e6*RAfac,
 #MANTLETOCRUST = (18.*1e3)/dp.LS #Crust depth
 MANTLETOCRUST = (27.*1e3)/dp.LS #Crust depth
 
-CRUSTTOMANTLE = (300.*1e3)/dp.LS 
-LITHTOMANTLE = (660.*1e3)/dp.LS 
+CRUSTTOMANTLE = (900.*1e3)/dp.LS 
+LITHTOMANTLE = (900.*1e3)/dp.LS 
 MANTLETOLITH = (200.*1e3)/dp.LS 
 TOPOHEIGHT = (20.*1e3)/dp.LS  #rock-air topography limits
 AVGTEMP = 0.53 #Used to define lithosphere
@@ -212,12 +212,7 @@ else:
     ndp.cohesion = float(sys.argv[1])*newvisc
 
 
-# In[8]:
-
-dp.StALS
-
-
-# In[9]:
+# In[309]:
 
 ###########
 #Model setup parameters
@@ -243,7 +238,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 96
+RES = 256
 
 if MINX == 0.:
     Xres = RES
@@ -259,18 +254,18 @@ else:
     MAXY = 1.
 
 
-periodic = [False, False]
+periodic = [True, False]
 elementType = "Q1/dQ0"
 #elementType ="Q2/DPC1"
 
-refineMesh = True
+refineMesh = False
 
 #System/Solver stuff
 
 PIC_integration=False
 
 
-# In[10]:
+# In[310]:
 
 ###########
 #Model Runtime parameters
@@ -283,7 +278,7 @@ gldbs_output = 25
 images_output = 1e6
 checkpoint_every = 25
 metric_output = 25
-sticky_air_temp = 10
+sticky_air_temp = 5
 
 comm.Barrier() #Barrier here so not procs run the check in the next cell too early 
 
@@ -292,7 +287,7 @@ assert (metric_output >= swarm_update), 'Swarm update is needed before checkpoin
 assert metric_output >= sticky_air_temp, 'Sticky air temp should be updated more frequently that metrics'
 
 
-# In[11]:
+# In[311]:
 
 ###########
 #Model output parameters
@@ -303,7 +298,7 @@ writeFiles = True
 loadTemp = True
 
 
-# In[12]:
+# In[312]:
 
 mesh = uw.mesh.FeMesh_Cartesian( elementType = ("Q1/dQ0"),
                                  elementRes  = (Xres, Yres), 
@@ -318,19 +313,19 @@ temperatureField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 temperatureDotField = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=1 )
 
 
-# In[13]:
+# In[313]:
 
 print("mesh size", mesh.data.shape, mesh.elementRes)
 
 
-# In[14]:
+# In[314]:
 
 Xres, Yres, MINX,MAXX,MINY,MAXY, periodic, elementType, dim 
 
 
 # ##Refine mesh
 
-# In[21]:
+# In[315]:
 
 #X-Axis
 
@@ -352,7 +347,7 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'x',norm = 'Min', constraints = [])
 
 
-# In[22]:
+# In[316]:
 
 axis = 1
 orgs = np.linspace(mesh.minCoord[axis], mesh.maxCoord[axis], mesh.elementRes[axis] + 1)
@@ -363,7 +358,7 @@ value_to_constrain = 1.
 yconst = [(sp.find_closest(orgs, value_to_constrain), np.array([value_to_constrain,0]))]
 
 
-# In[23]:
+# In[317]:
 
 #Y-Axis
 if refineMesh:
@@ -384,7 +379,7 @@ if refineMesh:
     sp.deform_1d(deform_lengths, mesh,axis = 'y',norm = 'Min', constraints = yconst)
 
 
-# In[24]:
+# In[318]:
 
 figMesh = glucifer.Figure(figsize=(1200,600),antialias=1)
 #figMesh.append( glucifer.objects.Mesh(mesh.subMesh, nodeNumbers=True) )
@@ -394,7 +389,7 @@ figMesh.show()
 
 # # ICs and BCs
 
-# In[19]:
+# In[319]:
 
 # Get the actual sets 
 #
@@ -415,7 +410,7 @@ BWalls = mesh.specialSets["MinJ_VertexSet"]
 AWalls = IWalls + JWalls
 
 
-# In[19]:
+# In[320]:
 
 # Initialise data.. Note that we are also setting boundary conditions here
 velocityField.data[:] = [0.,0.]
@@ -431,13 +426,18 @@ def wbl(x, w0 = 0.06):
     return Wbl
 
 
-def tempf(z,w,t0=0.64):
-    temp = t0*math.erf((1-z)/w)
+def tempf(z,w,tm=0.64, ts = 0.12):
+    temp = (tm - ts) *math.erf((1-z)/w) + ts
     return temp
 
 
 
-# In[20]:
+# In[321]:
+
+tempf(0.5, 0.095)
+
+
+# In[340]:
 
 age_asymmetry = 1.
 
@@ -453,40 +453,53 @@ for index, coord in enumerate(mesh.data):
         
 
 
+#for index, coord in enumerate(mesh.data):
+#    if abs(coord[0]) < wbl(0)/2. and coord[1] > 0.5:
+#        w = wbl(0)/2.
+#        d = w - abs(coord[0])
+#        t = tempf(d, coord[1], w)
+#        temperatureField.data[index] = t
+        
 for index, coord in enumerate(mesh.data):
-    if abs(coord[0]) < wbl(0)/2. and coord[1] > 0.5:
-        w = wbl(0)/2.
-        d = w - abs(coord[0])
-        t = tempf(d, coord[1], w)
+    if abs(coord[0]) < wbl(0)/2. and coord[1] > 0.5 and coord[1] < 0.99:
+        w = wbl(0)
+        d = 1. - abs(coord[0])
+        t = tempf(d, w)
         temperatureField.data[index] = t
         
         
 
 #Set sticky air Temp to zero
 for index, coord in enumerate(mesh.data):
-    if coord[1] >= 1.:
+    if coord[1] > 1.:
         temperatureField.data[index] = dp.TS/dp.deltaT
 
 
-# In[21]:
+# In[341]:
 
-dp.TS/dp.deltaT
+#figTemp = glucifer.Figure()
+#figTemp.append( glucifer.objects.Surface(mesh, temperatureField))
+#figTemp.append( glucifer.objects.Mesh(mesh))
+
+#figTemp.append( glucifer.objects.VectorArrows(mesh,velocityField, arrowHead=0.2, scaling=0.01))
+#figTemp.save_database('test.gldb')
+#figTemp.show()
 
 
-# In[22]:
+# In[325]:
 
 #For notebook runs
 #ModIt = "96"
 
 
-# In[23]:
+# In[299]:
 
 # Now setup the dirichlet boundary condition
 # Note that through this object, we are flagging to the system 
 # that these nodes are to be considered as boundary conditions. 
 # Also note that we provide a tuple of sets.. One for the Vx, one for Vy.
 freeslipBC = uw.conditions.DirichletCondition( variable      = velocityField, 
-                                               indexSetsPerDof = (IWalls, JWalls) )
+                                               indexSetsPerDof = (None, JWalls) )
 
 # also set dirichlet for temp field
 dirichTempBC = uw.conditions.DirichletCondition(     variable=temperatureField, 
@@ -510,7 +523,7 @@ pressureField.data[:] = 0.
 # ##Add Random 125 K temp perturbation
 # 
 
-# In[24]:
+# In[89]:
 
 tempNump = temperatureField.data
 
@@ -528,7 +541,7 @@ if not checkpointLoad:
 
 # ##Reset bottom Dirichlet conds.
 
-# In[25]:
+# In[114]:
 
 # Set temp boundaries 
 # on the boundaries
@@ -538,14 +551,14 @@ for index in mesh.specialSets["MaxJ_VertexSet"]:
     temperatureField.data[index] = ndp.TS
 
 
-# In[26]:
+# In[36]:
 
 #temperatureField.evaluate(IWalls).min()
 
 
 # #Particles
 
-# In[27]:
+# In[29]:
 
 ###########
 #Material Swarm and variables
@@ -561,7 +574,7 @@ varlist = [materialVariable, rockIntVar, airIntVar, lithIntVar]
 varnames = ['materialVariable', 'rockIntVar', 'airIntVar', 'lithIntVar']
 
 
-# In[28]:
+# In[30]:
 
 ###########
 #Swarms for surface intragrals when using Sticky air
@@ -586,7 +599,7 @@ dumout = baseintswarm.add_particles_with_coordinates(np.array((xps,yps)).T)
 
 # #Initialise swarm variables, or Swarm checkpoint load
 
-# In[29]:
+# In[31]:
 
 mantleIndex = 0
 lithosphereIndex = 1
@@ -632,7 +645,7 @@ else:
 
 # #Material Graphs
 
-# In[30]:
+# In[32]:
 
 ##############
 #Important: This is a quick fix for a bug that arises in parallel runs
@@ -640,12 +653,12 @@ else:
 material_list = [0,1,2,3]
 
 
-# In[31]:
+# In[33]:
 
 print( "unique values after swarm has loaded:" + str(np.unique(materialVariable.data[:])))
 
 
-# In[32]:
+# In[34]:
 
 #All depth conditions are given as (km/D) where D is the length scale,
 #note that 'model depths' are used, e.g. 1-z, where z is the vertical Underworld coordinate
@@ -693,12 +706,12 @@ DG[1][2]['depthcondition'] = MANTLETOCRUST
 DG[3][2]['depthcondition'] = TOPOHEIGHT
 
 
-# In[33]:
+# In[35]:
 
 DG.nodes()
 
 
-# In[34]:
+# In[36]:
 
 remove_nodes = []
 for node in DG.nodes():
@@ -709,12 +722,12 @@ for rmnode in remove_nodes:
     DG.remove_node(rmnode)
 
 
-# In[35]:
+# In[37]:
 
 DG.nodes()
 
 
-# In[36]:
+# In[38]:
 
 
 #remove_nodes = []
@@ -726,7 +739,7 @@ DG.nodes()
 #    DG.remove_node(rmnode)
 
 
-# In[37]:
+# In[39]:
 
 #A Dictionary to map strings in the graph (e.g. 'depthcondition') to particle data arrays
 
@@ -741,7 +754,7 @@ conditionmap['avgtempcondition'] = {}
 conditionmap['avgtempcondition']['data'] = particletemps
 
 
-# In[38]:
+# In[40]:
 
 def update_swarm(graph, particleIndex):
     """
@@ -790,12 +803,12 @@ def update_swarm(graph, particleIndex):
         return innerchange
 
 
-# In[39]:
+# In[41]:
 
 #fn.branching.conditional?
 
 
-# In[40]:
+# In[42]:
 
 #Cleanse the swarm of its sins
 #For some Material Graphs, the graph may have to be treaversed more than once
@@ -812,7 +825,7 @@ while number_updated != 0:
                     materialVariable.data[particleID] = check
 
 
-# In[42]:
+# In[43]:
 
 ## Here we'll play around with some different crust-perturbations
 ##Voul inlude this is the Graph update function, but for now keep it seperate
@@ -839,7 +852,7 @@ if not checkpointLoad:
         #    materialVariable.data[particleID] = crustIndex
 
 
-# In[43]:
+# In[44]:
 
 figSwarm = glucifer.Figure(figsize=(1024,384))
 figSwarm.append( glucifer.objects.Points(gSwarm,materialVariable, colours='brown white blue red'))
@@ -851,7 +864,7 @@ figSwarm.show()
 
 # ## Set the values for the masking swarms
 
-# In[ ]:
+# In[45]:
 
 #Setup up a masking Swarm variable for the integrations.
 #These should be rebuilt at same frequency as the metric calcualtions
@@ -874,7 +887,7 @@ lithIntVar.data[islith] = 1.
 
 # In the paper, Crameri and Tackley give the dimensionless cohesion as well as the dimensionless yield stress gradient. But the latter is given as a function of dimensionless (lithostatic) pressure, whereas it is easier to use dimensionless depth. Easy, multiply the dimensionless depth by $\rho g D$, divide by the stress scale, $\frac{\eta \kappa}{D^2}$ then use the same dimensionless yeild stress gradient ($\mu$)
 
-# In[44]:
+# In[46]:
 
 # The yeilding of the upper slab is dependent on the strain rate.
 strainRate_2ndInvariant = fn.tensor.second_invariant( 
@@ -890,15 +903,20 @@ depth = 1. - coordinate[1]
 lithopressuregrad = dp.rho*dp.g*(dp.LS)**3/(dp.eta0*dp.k)
 
 
-# In[45]:
+# In[47]:
 
 #Check important paramters
 print(ndp.E, ndp.V,ndp.TS,ndp.RD, ndp.TR, ndp.cohesion)
 
 
-# In[46]:
+# In[48]:
 
 #ndp.up_visc/ndp.low_visc
+
+
+# In[52]:
+
+#lithopressuregrad
 
 
 # In[47]:
@@ -1027,7 +1045,7 @@ stokesPIC.fn_viscosity = viscosityMapFn
 ###################
 
 #Set more advanced solver option
-#solver.options.main.Q22_pc_type='gkgdiag'
+solver.options.main.Q22_pc_type='gkgdiag'
 #solver.options.A11.ksp_rtol=1e-2
 #solver.options.scr.ksp_rtol=1e-3
 #solver.options.A11.ksp_type="cg"
@@ -1035,7 +1053,7 @@ solver.options.scr.use_previous_guess = True
 #solver.options.scr.ksp_set_min_it_converge = 1
 #solver.options.main.penalty=10.0
 
-solver.options.mg.levels = 3
+#solver.options.mg.levels = 3
 #solver.options.main.remove_constant_pressure_null_space=True
 #solver.options.main.penalty = 1e2
 
@@ -1490,15 +1508,15 @@ f_o.close()
 print 'step =',step
 
 
-# In[ ]:
+# In[171]:
 
-#figTemp = glucifer.Figure()
-#figTemp.append( glucifer.objects.Surface(mesh, temperatureField))
+figTemp = glucifer.Figure()
+figTemp.append( glucifer.objects.Surface(mesh, temperatureField))
 #figTemp.append( glucifer.objects.Mesh(mesh))
 
 #figTemp.append( glucifer.objects.VectorArrows(mesh,velocityField, arrowHead=0.2, scaling=0.01))
-#figTemp.save_database('test.gldb')
-#figTemp.show()
+figTemp.save_database('test.gldb')
+figTemp.show()
 
 
 # In[ ]:
