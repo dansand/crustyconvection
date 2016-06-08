@@ -63,7 +63,7 @@ if (len(sys.argv) > 1):
 #Model name.  
 ############
 Model = "T"
-ModNum = 0
+ModNum = 1
 
 if len(sys.argv) == 1:
     ModIt = "Base"
@@ -238,7 +238,7 @@ dim = 2          # number of spatial dimensions
 
 #MESH STUFF
 
-RES = 192
+RES = 128
 
 if MINX == 0.:
     Xres = RES
@@ -258,7 +258,7 @@ periodic = [True, False]
 elementType = "Q1/dQ0"
 #elementType ="Q2/DPC1"
 
-refineMesh = False
+refineMesh = True
 
 #System/Solver stuff
 
